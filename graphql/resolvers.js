@@ -1,4 +1,5 @@
 const Appointment = require('../models/Appointment');
+const sendEmailNotification = require("../utils/emailService");
 
 const resolvers = {
     Query: {
@@ -46,7 +47,11 @@ const resolvers = {
     
                 const newAppointment = new Appointment({ title, description, date, time, participants });
                 const savedAppointment = await newAppointment.save();
-    
+                await sendEmailNotification(
+                    participants,
+                    "New Appointment Created",
+                    `Your appointment "${title}" is scheduled on ${date} at ${time}.`
+                );
                 return savedAppointment;
             } catch (error) {
                 console.error("Error creating appointment:", error);
@@ -75,7 +80,12 @@ const resolvers = {
                     { title, description, date, time, participants },
                     { new: true }
                 );
-    
+                await sendEmailNotification(
+                    participants,
+                    "Appointment Updated",
+                    `Your appointment "${title}" has been updated. New Date: ${date}, Time: ${time}.`
+                );
+
                 return updatedAppointment;
             } catch (error) {
                 console.error(`Error updating appointment with ID ${id}:`, error);
@@ -101,7 +111,11 @@ const resolvers = {
             appointment.participants.forEach(participant => {
                 console.log(`Notification sent to ${participant}: Appointment rescheduled to ${date} at ${time}.`);
             });
-
+            await sendEmailNotification(
+                appointment.participants,
+                "Appointment Rescheduled",
+                `Your appointment "${appointment.title}" has been rescheduled to ${date} at ${time}.`
+            );
             return appointment;
         },
 
@@ -123,7 +137,12 @@ const resolvers = {
                     { status: "Canceled" },
                     { new: true }
                 );
-    
+                await sendEmailNotification(
+                    appointment.participants,
+                    "Appointment Canceled",
+                    `Your appointment "${appointment.title}" has been canceled.`
+                );
+
                 return canceledAppointment;
             } catch (error) {
                 console.error(`Error canceling appointment with ID ${id}:`, error);
@@ -141,6 +160,11 @@ const resolvers = {
                     return `No appointment found with ID: ${id}`;
                 }
                 await Appointment.findByIdAndDelete(id);
+                await sendEmailNotification(
+                    appointment.participants,
+                    "Appointment Deleted",
+                    `Your appointment "${appointment.title}" has been deleted.`
+                );
     
                 return "Appointment successfully deleted.";
             } catch (error) {
@@ -152,3 +176,17 @@ const resolvers = {
 };
 
 module.exports = resolvers;
+const resolvers1 = {
+    mutations: {
+        createUser: ()=> {
+            console.log("User Created");
+        }, 
+        getUser: () => {
+            console.log("Getting Back all the Users.....");
+        }, 
+        deleteUser: () => {
+            console.log('The User is Deleted')
+        }
+    }
+}
+console.log(resolvers1)
