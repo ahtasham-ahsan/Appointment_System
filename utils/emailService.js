@@ -7,12 +7,7 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASS, 
     },
 });
-/**
- * @param {string[]} recipients
- * @param {string} su
- * bject 
- * @param {string} message 
- */
+
 const sendEmailNotification = async (recipients, subject, message) => {
     try {
         const mailOptions = {
