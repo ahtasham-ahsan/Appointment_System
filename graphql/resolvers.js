@@ -83,7 +83,8 @@ const resolvers = {
                 await sendEmailNotification(
                     participants,
                     "Appointment Updated",
-                    `Your appointment "${title}" has been updated. New Date: ${date}, Time: ${time}.`
+                    `Your appointment "${title}" has been updated. 
+New Date: ${date} \nTime: ${time}.`
                 );
 
                 return updatedAppointment;
