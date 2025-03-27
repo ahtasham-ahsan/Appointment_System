@@ -57,6 +57,21 @@ const resolvers = {
                 throw new Error("Failed to create appointment.");
             }
         },
+        createUser: async (_, { name, email, timezone }) => {
+            try {
+                const existingUser = await User.findOne({ email });
+                if (existingUser) {
+                    throw new Error("User with this email already exists.");
+                }
+
+                const newUser = new User({ name, email, timezone });
+                await newUser.save();
+                return newUser;
+            } catch (error) {
+                console.error("Error creating user:", error);
+                throw new Error("Failed to create user.");
+            }
+        },
         updateUserTimezone: async (_, { id, timezone }) => {
             try {
                 const updatedUser = await User.findByIdAndUpdate(id, { timezone }, { new: true });
@@ -66,7 +81,7 @@ const resolvers = {
                 console.error("Error updating timezone:", error);
                 throw new Error("Failed to update timezone.");
             }
-        },
+        },  
         updateAppointment: async (_, { id, title, description, date, time, participants }) => {
             try {
                 if (!id) throw new Error("Appointment ID is required.");
