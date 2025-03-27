@@ -30,6 +30,7 @@ const typeDefs = gql`
         rescheduleAppointment(id: ID!, date: String!, time: String!): Appointment
         cancelAppointment(id: ID!): Appointment
         deleteAppointment(id: ID!): String
+        createUser(name: String!, email: String!, timezone: String!): User
         updateUserTimezone(id: ID!, timezone: String!): User
     }
 `;
