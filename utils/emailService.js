@@ -10,6 +10,10 @@ const transporter = nodemailer.createTransport({
 
 const sendEmailNotification = async (recipients, subject, message) => {
     try {
+        if (!Array.isArray(recipients) || recipients.length === 0) {
+            console.error("Invalid recipients list:", recipients);
+            return;
+          }
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: recipients.join(", "),
