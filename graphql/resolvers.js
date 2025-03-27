@@ -1,3 +1,4 @@
+const User = require('../models/User');
 const Appointment = require('../models/Appointment');
 const sendEmailNotification = require("../utils/emailService");
 
@@ -5,46 +6,44 @@ const resolvers = {
     Query: {
         getAppointments: async () => {
             try {
-                const appointments = await Appointment.find();
-                return appointments;
+                return await Appointment.find();
             } catch (error) {
                 console.error("Error fetching appointments:", error);
-                throw new Error("Failed to fetch appointments. Please try again later.");
+                throw new Error("Failed to fetch appointments.");
             }
         },
         getAppointment: async (_, { id }) => {
             try {
-                if (!id) {
-                    throw new Error("Appointment ID is required.");
-                }
-    
                 const appointment = await Appointment.findById(id);
-    
-                if (!appointment) {
-                    throw new Error(`No appointment found with ID: ${id}`);
-                }
-    
+                if (!appointment) throw new Error(`No appointment found with ID: ${id}`);
                 return appointment;
             } catch (error) {
-                console.error(`Error fetching appointment with ID ${id}:`, error);
-                throw new Error("Failed to fetch appointment. Please try again later.");
+                console.error(`Error fetching appointment:`, error);
+                throw new Error("Failed to fetch appointment.");
             }
         },
+        getUser: async (_, { id }) => {
+            try {
+                const user = await User.findById(id);
+                if (!user) throw new Error("User not found");
+                return user;
+            } catch (error) {
+                console.error("Error fetching user:", error);
+                throw new Error("Failed to fetch user.");
+            }
+        }
     },
-
     Mutation: {
         createAppointment: async (_, { title, description, date, time, participants }) => {
             try {
-                if (!title || !date || !time || !participants || participants.length === 0) {
-                    throw new Error("Title, date, time, and at least one participant are required.");
+                if (!title || !date || !time || !participants.length) {
+                    throw new Error("Missing required fields.");
                 }
-    
                 const appointmentDate = new Date(date);
-                const today = new Date();
-                if (appointmentDate < today) {
+                if (appointmentDate < new Date()) {
                     throw new Error("Cannot create an appointment in the past.");
                 }
-    
+
                 const newAppointment = new Appointment({ title, description, date, time, participants });
                 const savedAppointment = await newAppointment.save();
                 await sendEmailNotification(
@@ -55,88 +54,81 @@ const resolvers = {
                 return savedAppointment;
             } catch (error) {
                 console.error("Error creating appointment:", error);
-                throw new Error("Failed to create appointment. Please try again later.");
+                throw new Error("Failed to create appointment.");
             }
         },
-
+        updateUserTimezone: async (_, { id, timezone }) => {
+            try {
+                const updatedUser = await User.findByIdAndUpdate(id, { timezone }, { new: true });
+                if (!updatedUser) throw new Error("User not found");
+                return updatedUser;
+            } catch (error) {
+                console.error("Error updating timezone:", error);
+                throw new Error("Failed to update timezone.");
+            }
+        },
         updateAppointment: async (_, { id, title, description, date, time, participants }) => {
             try {
-                if (!id) {
-                    throw new Error("Appointment ID is required.");
-                }
+                if (!id) throw new Error("Appointment ID is required.");
                 const existingAppointment = await Appointment.findById(id);
-                if (!existingAppointment) {
-                    throw new Error(`No appointment found with ID: ${id}`);
+                if (!existingAppointment) throw new Error(`No appointment found with ID: ${id}`);
+
+                if (date && new Date(date) < new Date()) {
+                    throw new Error("Cannot update appointment to a past date.");
                 }
-                if (date) {
-                    const newDate = new Date(date);
-                    const today = new Date();
-                    if (newDate < today) {
-                        throw new Error("Cannot update appointment to a past date.");
-                    }
-                }
+
                 const updatedAppointment = await Appointment.findByIdAndUpdate(
-                    id,
-                    { title, description, date, time, participants },
-                    { new: true }
+                    id, { title, description, date, time, participants }, { new: true }
                 );
+
                 await sendEmailNotification(
                     participants,
                     "Appointment Updated",
-                    `Your appointment "${title}" has been updated. New Date: ${date} \nTime: ${time}.`
+                    `Your appointment "${title}" has been updated. New Date: ${date} Time: ${time}.`
                 );
 
                 return updatedAppointment;
             } catch (error) {
-                console.error(`Error updating appointment with ID ${id}:`, error);
-                throw new Error("Failed to update appointment. Please try again later.");
+                console.error(`Error updating appointment:`, error);
+                throw new Error("Failed to update appointment.");
             }
         },
-
         rescheduleAppointment: async (_, { id, date, time }) => {
-            const appointment = await Appointment.findById(id);
-            if (!appointment) throw new Error("Appointment not found");
+            try {
+                const appointment = await Appointment.findById(id);
+                if (!appointment) throw new Error("Appointment not found");
 
-            const currentDate = new Date();
-            const appointmentDate = new Date(appointment.date);
+                if (new Date(appointment.date) < new Date()) {
+                    throw new Error("Cannot reschedule past appointments.");
+                }
 
-            if (appointmentDate < currentDate) {
-                throw new Error("Cannot reschedule past appointments.");
+                appointment.date = date;
+                appointment.time = time;
+                appointment.status = 'Rescheduled';
+                await appointment.save();
+
+                await sendEmailNotification(
+                    appointment.participants,
+                    "Appointment Rescheduled",
+                    `Your appointment "${appointment.title}" has been rescheduled to ${date} at ${time}.`
+                );
+
+                return appointment;
+            } catch (error) {
+                console.error(`Error rescheduling appointment:`, error);
+                throw new Error("Failed to reschedule appointment.");
             }
-            appointment.date = date;
-            appointment.time = time;
-            appointment.status = 'Rescheduled';
-            await appointment.save();
-
-            appointment.participants.forEach(participant => {
-                console.log(`Notification sent to ${participant}: Appointment rescheduled to ${date} at ${time}.`);
-            });
-            await sendEmailNotification(
-                appointment.participants,
-                "Appointment Rescheduled",
-                `Your appointment "${appointment.title}" has been rescheduled to ${date} at ${time}.`
-            );
-            return appointment;
         },
-
-
         cancelAppointment: async (_, { id }) => {
             try {
-                if (!id) {
-                    throw new Error("Appointment ID is required.");
-                }
                 const appointment = await Appointment.findById(id);
-                if (!appointment) {
-                    throw new Error(`No appointment found with ID: ${id}`);
-                }
-                if (appointment.status === "Canceled") {
-                    throw new Error("This appointment is already canceled.");
-                }
+                if (!appointment) throw new Error(`No appointment found with ID: ${id}`);
+                if (appointment.status === "Canceled") throw new Error("Appointment already canceled.");
+
                 const canceledAppointment = await Appointment.findByIdAndUpdate(
-                    id,
-                    { status: "Canceled" },
-                    { new: true }
+                    id, { status: "Canceled" }, { new: true }
                 );
+
                 await sendEmailNotification(
                     appointment.participants,
                     "Appointment Canceled",
@@ -145,48 +137,29 @@ const resolvers = {
 
                 return canceledAppointment;
             } catch (error) {
-                console.error(`Error canceling appointment with ID ${id}:`, error);
-                throw new Error("Failed to cancel appointment. Please try again later.");
+                console.error(`Error canceling appointment:`, error);
+                throw new Error("Failed to cancel appointment.");
             }
         },
-
         deleteAppointment: async (_, { id }) => {
             try {
-                if (!id) {
-                    return "Appointment ID is required."
-                }
                 const appointment = await Appointment.findById(id);
-                if (!appointment) {
-                    return `No appointment found with ID: ${id}`;
-                }
+                if (!appointment) throw new Error(`No appointment found with ID: ${id}`);
+
                 await Appointment.findByIdAndDelete(id);
                 await sendEmailNotification(
                     appointment.participants,
                     "Appointment Deleted",
                     `Your appointment "${appointment.title}" has been deleted.`
                 );
-    
+
                 return "Appointment successfully deleted.";
             } catch (error) {
-                console.error(`Error deleting appointment with ID ${id}:`, error);
-                return "Failed to delete appointment. Please try again later.";
+                console.error(`Error deleting appointment:`, error);
+                throw new Error("Failed to delete appointment.");
             }
-        },
+        }
     }
 };
 
 module.exports = resolvers;
-const resolvers1 = {
-    mutations: {
-        createUser: ()=> {
-            console.log("User Created");
-        }, 
-        getUser: () => {
-            console.log("Getting Back all the Users.....");
-        }, 
-        deleteUser: () => {
-            console.log('The User is Deleted')
-        }
-    }
-}
-console.log(resolvers1)
