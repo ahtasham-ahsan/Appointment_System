@@ -7,46 +7,83 @@ const resolvers = {
     Query: {
         getAppointments: async (_, { userEmail }) => {
             try {
-                const user = await User.findOne({ email: userEmail });
-                const timezone = user ? user.timezone : "UTC";
-    
-                const appointments = await Appointment.find({ participants: userEmail });
-    
-                return appointments.map(appointment => {
-                    const plain = appointment.toObject();
-                    return {
-                        ...plain,
-                        id: plain._id, 
-                        date: moment.utc(plain.date).tz(timezone).format('YYYY-MM-DD'),
-                        time: moment.utc(`${plain.date}T${plain.time}`).tz(timezone).format('hh:mm A')
-                    };
-                });
-            } catch (error) {
-                console.error("Error fetching appointments:", error);
-                throw new Error("Failed to fetch appointments.");
-            }
-        },
-    
-        getAppointment: async (_, { id, userEmail }) => {
-            try {
-                const user = await User.findOne({ email: userEmail });
-                const timezone = user ? user.timezone : "UTC";
-    
-                const appointment = await Appointment.findById(id);
-                if (!appointment) throw new Error("Appointment not found");
-    
+              const user = await User.findOne({ email: userEmail });
+              const timezone = user ? user.timezone : "UTC";
+      
+              const appointments = await Appointment.find({ participants: userEmail });
+      
+              return appointments.map(appointment => {
                 const plain = appointment.toObject();
-                return {
+                const { _id, date, time } = plain;
+      
+                const dateStr = date instanceof Date ? moment(date).format("YYYY-MM-DD") : String(date);
+                const timeStr = typeof time === "string" ? time : String(time);
+      
+                const combined = `${dateStr}T${timeStr}`;
+      
+                const momentObj = moment.utc(combined, "YYYY-MM-DDTHH:mm");
+                if (!momentObj.isValid()) {
+                  console.error("Invalid datetime combination:", combined);
+                  return {
                     ...plain,
-                    id: plain._id,
-                    date: moment.utc(plain.date).tz(timezone).format('YYYY-MM-DD'),
-                    time: moment.utc(`${plain.date}T${plain.time}`).tz(timezone).format('hh:mm A')
+                    id: _id.toString(),
+                    date: "Invalid date",
+                    time: "Invalid time"
+                  };
+                }
+      
+                return {
+                  ...plain,
+                  id: _id.toString(),
+                  date: momentObj.clone().tz(timezone).format("YYYY-MM-DD"),
+                  time: momentObj.clone().tz(timezone).format("hh:mm A")
                 };
+              });
             } catch (error) {
-                console.error("Error fetching appointment:", error);
-                throw new Error("Failed to fetch appointment.");
+              console.error("Error fetching appointments:", error);
+              throw new Error("Failed to fetch appointments.");
             }
-        },
+          },
+      
+          getAppointment: async (_, { id, userEmail }) => {
+            try {
+              const user = await User.findOne({ email: userEmail });
+              const timezone = user ? user.timezone : "UTC";
+      
+              const appointment = await Appointment.findById(id);
+              if (!appointment) throw new Error("Appointment not found");
+      
+              const plain = appointment.toObject();
+              const { _id, date, time } = plain;
+      
+              const dateStr = date instanceof Date ? moment(date).format("YYYY-MM-DD") : String(date);
+              const timeStr = typeof time === "string" ? time : String(time);
+      
+              const combined = `${dateStr}T${timeStr}`;
+              const momentObj = moment.utc(combined, "YYYY-MM-DDTHH:mm");
+      
+              if (!momentObj.isValid()) {
+                console.error("Invalid datetime combination:", combined);
+                return {
+                  ...plain,
+                  id: _id.toString(),
+                  date: "Invalid date",
+                  time: "Invalid time"
+                };
+              }
+      
+              return {
+                ...plain,
+                id: _id.toString(),
+                date: momentObj.clone().tz(timezone).format("YYYY-MM-DD"),
+                time: momentObj.clone().tz(timezone).format("hh:mm A")
+              };
+            } catch (error) {
+              console.error("Error fetching appointment:", error);
+              throw new Error("Failed to fetch appointment.");
+            }
+          },
+
         getUser: async (_, { id }) => {
             try {
                 const user = await User.findById(id);
