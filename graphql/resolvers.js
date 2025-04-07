@@ -1,24 +1,49 @@
 const User = require('../models/User');
 const Appointment = require('../models/Appointment');
 const sendEmailNotification = require("../utils/emailService");
+const moment = require('moment-timezone');
 
 const resolvers = {
     Query: {
-        getAppointments: async () => {
+        getAppointments: async (_, { userEmail }) => {
             try {
-                return await Appointment.find();
+                const user = await User.findOne({ email: userEmail });
+                const timezone = user ? user.timezone : "UTC";
+    
+                const appointments = await Appointment.find({ participants: userEmail });
+    
+                return appointments.map(appointment => {
+                    const plain = appointment.toObject();
+                    return {
+                        ...plain,
+                        id: plain._id, 
+                        date: moment.utc(plain.date).tz(timezone).format('YYYY-MM-DD'),
+                        time: moment.utc(`${plain.date}T${plain.time}`).tz(timezone).format('hh:mm A')
+                    };
+                });
             } catch (error) {
                 console.error("Error fetching appointments:", error);
                 throw new Error("Failed to fetch appointments.");
             }
         },
-        getAppointment: async (_, { id }) => {
+    
+        getAppointment: async (_, { id, userEmail }) => {
             try {
+                const user = await User.findOne({ email: userEmail });
+                const timezone = user ? user.timezone : "UTC";
+    
                 const appointment = await Appointment.findById(id);
-                if (!appointment) throw new Error(`No appointment found with ID: ${id}`);
-                return appointment;
+                if (!appointment) throw new Error("Appointment not found");
+    
+                const plain = appointment.toObject();
+                return {
+                    ...plain,
+                    id: plain._id,
+                    date: moment.utc(plain.date).tz(timezone).format('YYYY-MM-DD'),
+                    time: moment.utc(`${plain.date}T${plain.time}`).tz(timezone).format('hh:mm A')
+                };
             } catch (error) {
-                console.error(`Error fetching appointment:`, error);
+                console.error("Error fetching appointment:", error);
                 throw new Error("Failed to fetch appointment.");
             }
         },
@@ -33,12 +58,14 @@ const resolvers = {
             }
         }
     },
+
     Mutation: {
         createAppointment: async (_, { title, description, date, time, participants }) => {
             try {
                 if (!title || !date || !time || !participants.length) {
                     throw new Error("Missing required fields.");
                 }
+
                 const appointmentDate = new Date(date);
                 if (appointmentDate < new Date()) {
                     throw new Error("Cannot create an appointment in the past.");
@@ -46,17 +73,20 @@ const resolvers = {
 
                 const newAppointment = new Appointment({ title, description, date, time, participants });
                 const savedAppointment = await newAppointment.save();
+
                 await sendEmailNotification(
                     participants,
                     "New Appointment Created",
                     `Your appointment "${title}" is scheduled on ${date} at ${time}.`
                 );
+
                 return savedAppointment;
             } catch (error) {
                 console.error("Error creating appointment:", error);
                 throw new Error("Failed to create appointment.");
             }
         },
+
         createUser: async (_, { name, email, timezone }) => {
             try {
                 const existingUser = await User.findOne({ email });
@@ -72,6 +102,7 @@ const resolvers = {
                 throw new Error("Failed to create user.");
             }
         },
+
         updateUserTimezone: async (_, { id, timezone }) => {
             try {
                 const updatedUser = await User.findByIdAndUpdate(id, { timezone }, { new: true });
@@ -81,10 +112,12 @@ const resolvers = {
                 console.error("Error updating timezone:", error);
                 throw new Error("Failed to update timezone.");
             }
-        },  
+        },
+
         updateAppointment: async (_, { id, title, description, date, time, participants }) => {
             try {
                 if (!id) throw new Error("Appointment ID is required.");
+
                 const existingAppointment = await Appointment.findById(id);
                 if (!existingAppointment) throw new Error(`No appointment found with ID: ${id}`);
 
@@ -108,6 +141,7 @@ const resolvers = {
                 throw new Error("Failed to update appointment.");
             }
         },
+
         rescheduleAppointment: async (_, { id, date, time }) => {
             try {
                 const appointment = await Appointment.findById(id);
@@ -134,6 +168,7 @@ const resolvers = {
                 throw new Error("Failed to reschedule appointment.");
             }
         },
+
         cancelAppointment: async (_, { id }) => {
             try {
                 const appointment = await Appointment.findById(id);
@@ -156,6 +191,7 @@ const resolvers = {
                 throw new Error("Failed to cancel appointment.");
             }
         },
+
         deleteAppointment: async (_, { id }) => {
             try {
                 const appointment = await Appointment.findById(id);

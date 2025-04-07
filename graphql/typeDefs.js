@@ -17,13 +17,13 @@ const typeDefs = gql`
         participants: [String]!
         status: String!
     }
-
+    
     type Query {
-        getAppointments: [Appointment]
-        getAppointment(id: ID!): Appointment
+        getAppointments(userEmail: String!): [Appointment]
+        getAppointment(id: ID!, userEmail: String!): Appointment
         getUser(id: ID!): User
     }
-
+    
     type Mutation {
         createAppointment(title: String!, description: String, date: String!, time: String!, participants: [String]!): Appointment
         updateAppointment(id: ID!, title: String, description: String, date: String, time: String, participants: [String]): Appointment
