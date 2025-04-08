@@ -2,6 +2,8 @@ const User = require('../models/User');
 const Appointment = require('../models/Appointment');
 const sendEmailNotification = require("../utils/emailService");
 const moment = require('moment-timezone');
+const path = require('path')
+const cloudinary = require('../utils/cloudinary')
 
 const resolvers = {
     Query: {
@@ -98,6 +100,7 @@ const resolvers = {
 
     Mutation: {
         createAppointment: async (_, { title, description, date, time, participants, file }) => {
+          console.log("createAppointment")
             try {
               if (!title || !date || !time || !participants.length) {
                 throw new Error("Missing required fields.");
@@ -109,26 +112,30 @@ const resolvers = {
               }
           
               let attachment = null;
-          
-              if (file) {
-                const { createReadStream, filename, mimetype } = await file;
+              
+                // const { createReadStream, filename, mimetype } = await file;
           
                 // Ensure you're checking the correct MIME types
-                const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
-                if (!allowedTypes.includes(mimetype)) {
-                  throw new Error("Invalid file type. Only PDF, DOCX, and TXT allowed.");
-                }
+                // const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
+                // if (!allowedTypes.includes(mimetype)) {
+                //   throw new Error("Invalid file type. Only PDF, DOCX, and TXT allowed.");
+                // }
           
-                const stream = createReadStream();
-                const tempFilePath = path.join(__dirname, "../temp", filename);
-                const out = fs.createWriteStream(tempFilePath);
-          
-                // Pipe the file stream to the temporary location
-                await new Promise((resolve, reject) => {
-                  stream.pipe(out);
-                  out.on("finish", resolve);
-                  out.on("error", reject);
-                });
+                // const stream = createReadStream();
+                // const filename = "file.txt"
+                const filename = file
+                 
+                const tempFilePath = path.join(__dirname, "../public", filename);
+                console.log("tempFilePath",tempFilePath)
+               
+                // const out = fs.createWriteStream(tempFilePath);
+                // console.log(tempFilePath)
+                // // Pipe the file stream to the temporary location
+                // await new Promise((resolve, reject) => {
+                //   stream.pipe(out);
+                //   out.on("finish", resolve);
+                //   out.on("error", reject);
+                // });
           
                 // Upload the file to Cloudinary
                 const { secure_url } = await cloudinary.uploader.upload(tempFilePath, {
@@ -137,17 +144,18 @@ const resolvers = {
                   use_filename: true,
                   unique_filename: false
                 });
+
+                console.log("secure_url", secure_url)
           
                 // Clean up the temporary file after upload
-                fs.unlinkSync(tempFilePath);  // Delete the temp file after upload
+                //fs.unlinkSync(tempFilePath);  // Delete the temp file after upload
           
                 // Create the attachment object
                 attachment = {
                   url: secure_url,
                   filename,
-                  mimetype
+                  // mimetype: "mimetype"
                 };
-              }
           
               const newAppointment = new Appointment({
                 title,
