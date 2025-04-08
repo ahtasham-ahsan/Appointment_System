@@ -97,32 +97,82 @@ const resolvers = {
     },
 
     Mutation: {
-        createAppointment: async (_, { title, description, date, time, participants }) => {
+        createAppointment: async (_, { title, description, date, time, participants, file }) => {
             try {
-                if (!title || !date || !time || !participants.length) {
-                    throw new Error("Missing required fields.");
+              if (!title || !date || !time || !participants.length) {
+                throw new Error("Missing required fields.");
+              }
+          
+              const appointmentDate = new Date(date);
+              if (appointmentDate < new Date()) {
+                throw new Error("Cannot create an appointment in the past.");
+              }
+          
+              let attachment = null;
+          
+              if (file) {
+                const { createReadStream, filename, mimetype } = await file;
+          
+                // Ensure you're checking the correct MIME types
+                const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
+                if (!allowedTypes.includes(mimetype)) {
+                  throw new Error("Invalid file type. Only PDF, DOCX, and TXT allowed.");
                 }
-
-                const appointmentDate = new Date(date);
-                if (appointmentDate < new Date()) {
-                    throw new Error("Cannot create an appointment in the past.");
-                }
-
-                const newAppointment = new Appointment({ title, description, date, time, participants });
-                const savedAppointment = await newAppointment.save();
-
-                await sendEmailNotification(
-                    participants,
-                    "New Appointment Created",
-                    `Your appointment "${title}" is scheduled on ${date} at ${time}.`
-                );
-
-                return savedAppointment;
+          
+                const stream = createReadStream();
+                const tempFilePath = path.join(__dirname, "../temp", filename);
+                const out = fs.createWriteStream(tempFilePath);
+          
+                // Pipe the file stream to the temporary location
+                await new Promise((resolve, reject) => {
+                  stream.pipe(out);
+                  out.on("finish", resolve);
+                  out.on("error", reject);
+                });
+          
+                // Upload the file to Cloudinary
+                const { secure_url } = await cloudinary.uploader.upload(tempFilePath, {
+                  folder: "appointments",
+                  resource_type: "raw",  // Upload raw files like PDFs, DOCX, etc.
+                  use_filename: true,
+                  unique_filename: false
+                });
+          
+                // Clean up the temporary file after upload
+                fs.unlinkSync(tempFilePath);  // Delete the temp file after upload
+          
+                // Create the attachment object
+                attachment = {
+                  url: secure_url,
+                  filename,
+                  mimetype
+                };
+              }
+          
+              const newAppointment = new Appointment({
+                title,
+                description,
+                date,
+                time,
+                participants,
+                attachment
+              });
+          
+              const savedAppointment = await newAppointment.save();
+          
+              // Send email notification (optional, depending on your logic)
+              await sendEmailNotification(
+                participants,
+                "New Appointment Created",
+                `Your appointment "${title}" is scheduled on ${date} at ${time}.`
+              );
+          
+              return savedAppointment;
             } catch (error) {
-                console.error("Error creating appointment:", error);
-                throw new Error("Failed to create appointment.");
+              console.error("Error creating appointment:", error);
+              throw new Error("Failed to create appointment.");
             }
-        },
+          },
 
         createUser: async (_, { name, email, timezone }) => {
             try {
