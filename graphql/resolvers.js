@@ -2,8 +2,9 @@ const User = require('../models/User');
 const Appointment = require('../models/Appointment');
 const sendEmailNotification = require("../utils/emailService");
 const moment = require('moment-timezone');
-const path = require('path')
-const cloudinary = require('../utils/cloudinary')
+const path = require('path');
+const fs = require('fs');
+const cloudinary = require('../utils/cloudinary');
 
 const resolvers = {
   Query: {
@@ -100,7 +101,7 @@ const resolvers = {
 
   Mutation: {
     createAppointment: async (_, { title, description, date, time, participants, file }) => {
-      console.log("createAppointment")
+      console.log("createAppointment");
       try {
         if (!title || !date || !time || !participants.length) {
           throw new Error("Missing required fields.");
@@ -112,10 +113,19 @@ const resolvers = {
         }
 
         let attachment = null;
-        const filename = file
+        let contentPreview = null;
 
+        const filename = file;
+        
         const tempFilePath = path.join(__dirname, "../public", filename);
-        console.log("tempFilePath", tempFilePath)
+        console.log("tempFilePath", tempFilePath);
+
+        if (fs.existsSync(tempFilePath)) {
+          const fileContent = fs.readFileSync(tempFilePath, 'utf8');
+          contentPreview = fileContent.substring(0, 1024);
+        } else {
+          console.warn("File not found at temp path:", tempFilePath);
+        }
 
         const { secure_url } = await cloudinary.uploader.upload(tempFilePath, {
           folder: "appointments",
@@ -124,7 +134,7 @@ const resolvers = {
           unique_filename: false
         });
 
-        console.log("secure_url", secure_url)
+        console.log("secure_url", secure_url);
         attachment = {
           url: secure_url,
           filename,
@@ -134,15 +144,16 @@ const resolvers = {
         const newAppointment = new Appointment({
           title,
           description,
-          date: new Date(date), 
+          date: new Date(date),
           time,
           participants,
-          attachment
+          attachment,
+          contentPreview
         });
 
         const savedAppointment = await newAppointment.save();
         const formattedDate = new Date(savedAppointment.date).toISOString().split("T")[0];
-        const formattedTime = time; 
+        const formattedTime = time;
 
         await sendEmailNotification(
           participants,
@@ -200,7 +211,7 @@ const resolvers = {
         if (date && new Date(date) < new Date()) {
           throw new Error("Cannot update appointment to a past date.");
         }
-        
+
         const updatedAppointment = await Appointment.findByIdAndUpdate(
           id, { title, description, date, time, participants }, { new: true }
         );
