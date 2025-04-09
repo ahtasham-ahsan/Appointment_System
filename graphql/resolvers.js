@@ -134,21 +134,29 @@ const resolvers = {
         const newAppointment = new Appointment({
           title,
           description,
-          date,
+          date: new Date(date), 
           time,
           participants,
           attachment
         });
 
         const savedAppointment = await newAppointment.save();
+        const formattedDate = new Date(savedAppointment.date).toISOString().split("T")[0];
+        const formattedTime = time; 
 
         await sendEmailNotification(
           participants,
           "New Appointment Created",
-          `Your appointment "${title}" is scheduled on ${date} at ${time}.`
+          `Your appointment "${title}" is scheduled on ${formattedDate} at ${formattedTime}.`
         );
 
-        return savedAppointment;
+        return {
+          ...savedAppointment._doc,
+          id: savedAppointment._id.toString(),
+          date: formattedDate,
+          time: formattedTime,
+        };
+
       } catch (error) {
         console.error("Error creating appointment:", error);
         throw new Error("Failed to create appointment.");
@@ -196,7 +204,6 @@ const resolvers = {
         const updatedAppointment = await Appointment.findByIdAndUpdate(
           id, { title, description, date, time, participants }, { new: true }
         );
-
         await sendEmailNotification(
           participants,
           "Appointment Updated",
