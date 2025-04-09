@@ -117,13 +117,19 @@ const resolvers = {
 
         const filename = file;
         
+        const ext = path.extname(filename).toLowerCase();
+        const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
+        if (!allowedExtensions.includes(ext)) {
+          throw new Error("Unsupported file type. Only PDF, Word, and Text files are allowed.");
+        }
+
         const tempFilePath = path.join(__dirname, "../public", filename);
         console.log("tempFilePath", tempFilePath);
 
         if (fs.existsSync(tempFilePath)) {
           const fileContent = fs.readFileSync(tempFilePath, 'utf8');
           contentPreview = fileContent.substring(0, 1024);
-        } else {
+        } else {  
           console.warn("File not found at temp path:", tempFilePath);
         }
 
