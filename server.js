@@ -12,7 +12,6 @@ const server = new ApolloServer({ typeDefs, resolvers });
 async function startServer() {
   await connectDB();
 
-  // Apply the file upload middleware first
   app.use(graphqlUploadExpress());
 
   await server.start();
