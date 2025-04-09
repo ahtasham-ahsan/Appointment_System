@@ -116,7 +116,7 @@ const resolvers = {
         let contentPreview = null;
 
         const filename = file;
-        
+
         const ext = path.extname(filename).toLowerCase();
         const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
         if (!allowedExtensions.includes(ext)) {
@@ -129,7 +129,7 @@ const resolvers = {
         if (fs.existsSync(tempFilePath)) {
           const fileContent = fs.readFileSync(tempFilePath, 'utf8');
           contentPreview = fileContent.substring(0, 1024);
-        } else {  
+        } else {
           console.warn("File not found at temp path:", tempFilePath);
         }
 
