@@ -11,7 +11,8 @@ const appointmentSchema = new mongoose.Schema({
     url: String,
     filename: String,
     mimetype: String
-  }
+  },
+  contentPreview: { type: String }  
 }, { timestamps: true });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);
