@@ -25,6 +25,7 @@ const typeDefs = gql`
     participants: [String]!
     status: String!
     attachment: FileMeta
+    contentPreview: String
   }
 
   type Query {
