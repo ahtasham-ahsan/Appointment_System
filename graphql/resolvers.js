@@ -200,7 +200,7 @@ const resolvers = {
         if (date && new Date(date) < new Date()) {
           throw new Error("Cannot update appointment to a past date.");
         }
-
+        
         const updatedAppointment = await Appointment.findByIdAndUpdate(
           id, { title, description, date, time, participants }, { new: true }
         );
