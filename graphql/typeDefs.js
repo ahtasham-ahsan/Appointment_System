@@ -3,6 +3,10 @@ const { gql } = require('apollo-server-express');
 const typeDefs = gql`
   scalar Upload
 
+  type Subscription {
+  appointmentUpdated: Appointment
+  }
+
   type User {
     id: ID!
     name: String!

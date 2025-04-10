@@ -5,6 +5,24 @@ const moment = require('moment-timezone');
 const path = require('path');
 const fs = require('fs');
 const cloudinary = require('../utils/cloudinary');
+const { PubSub } = require('graphql-subscriptions');
+const APPOINTMENT_UPDATED = "APPOINTMENT_UPDATED";
+
+const { RedisPubSub } = require('graphql-redis-subscriptions');
+const Redis = require('ioredis');
+
+const options = {
+  host: process.env.REDIS_HOST || '127.0.0.1',
+  port: process.env.REDIS_PORT || 6379,
+  retryStrategy: times => Math.min(times * 50, 2000),
+};
+
+const pubsub = new RedisPubSub({
+  publisher: new Redis(options),
+  subscriber: new Redis(options)
+});
+
+
 
 const resolvers = {
   Query: {
@@ -160,6 +178,8 @@ const resolvers = {
         const savedAppointment = await newAppointment.save();
         const formattedDate = new Date(savedAppointment.date).toISOString().split("T")[0];
         const formattedTime = time;
+        pubsub.publish(APPOINTMENT_UPDATED, { appointmentUpdated: savedAppointment });
+
 
         await sendEmailNotification(
           participants,
@@ -226,6 +246,7 @@ const resolvers = {
           "Appointment Updated",
           `Your appointment "${title}" has been updated. New Date: ${date} Time: ${time}.`
         );
+        pubsub.publish(APPOINTMENT_UPDATED, { appointmentUpdated: updatedAppointment });
 
         return updatedAppointment;
       } catch (error) {
@@ -302,7 +323,13 @@ const resolvers = {
         throw new Error("Failed to delete appointment.");
       }
     }
+  },
+  Subscription: {
+    appointmentUpdated: {
+      subscribe: () => pubsub.asyncIterator([APPOINTMENT_UPDATED])
+    }
   }
+
 };
 
 module.exports = resolvers;
