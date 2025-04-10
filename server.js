@@ -5,7 +5,7 @@ const { ApolloServer } = require('apollo-server-express');
 const { graphqlUploadExpress } = require('graphql-upload');
 const { makeExecutableSchema } = require('@graphql-tools/schema');
 
-import { useServer } from 'graphql-ws';
+const { useServer } = require('graphql-ws/use/ws');
 
 const { WebSocketServer } = require('ws');
 const http = require('http');
