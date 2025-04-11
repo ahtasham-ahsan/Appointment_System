@@ -1,3 +1,4 @@
+console.log('Cloudinary API Key:', process.env.CLOUDINARY_API_KEY); // should log the actual API key value
 const cloudinary = require('cloudinary').v2;
 
 cloudinary.config({
