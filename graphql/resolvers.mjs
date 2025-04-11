@@ -2,14 +2,12 @@ import moment from 'moment-timezone';
 import path from 'path';
 import fs from 'fs';
 import { createPubSub } from '@graphql-yoga/subscription';
-import cloudinary from '../utils/cloudinary.js';
+import cloudinary from '../utils/cloudinary.mjs';
 import User from '../models/User.js';
 import Appointment from '../models/Appointment.js';
 import sendEmailNotification from '../utils/emailService.js';
-// import path from 'path';
 import { fileURLToPath } from 'url';
 
-// ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
