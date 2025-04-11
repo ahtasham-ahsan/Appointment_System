@@ -22,11 +22,9 @@ const httpServer = createServer(app);
 async function startServer() {
   await connectDB();
 
-  // Step 1: Build schema first, we will share it with both Apollo and ws
   const { makeExecutableSchema } = await import('@graphql-tools/schema');
   const schema = makeExecutableSchema({ typeDefs, resolvers });
 
-  // Step 2: Set up WebSocket server
   const wsServer = new WebSocketServer({
     server: httpServer,
     path: '/graphql',
@@ -40,9 +38,8 @@ async function startServer() {
     wsServer
   );
 
-  // Step 3: Set up Apollo Server (with schema)
   const apolloServer = new ApolloServer({
-    schema, // directly pass the schema here
+    schema, 
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {
@@ -57,8 +54,7 @@ async function startServer() {
     ],
   });
 
-  await apolloServer.start(); // ✅ only called once here
-
+  await apolloServer.start(); 
   app.use(cors());
   app.use(bodyParser.json());
   app.use(graphqlUploadExpress());
@@ -72,8 +68,8 @@ async function startServer() {
 
   const PORT = process.env.PORT || 5000;
   httpServer.listen(PORT, () => {
-    console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
-    console.log(`🔄 Subscriptions ready at ws://localhost:${PORT}/graphql`);
+    console.log(`Server ready at http://localhost:${PORT}/graphql`);
+    console.log(`Subscriptions ready at ws://localhost:${PORT}/graphql`);
   });
 }
 
