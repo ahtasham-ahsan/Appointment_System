@@ -1,4 +1,4 @@
-const { gql } = require('apollo-server-express');
+import { gql } from 'apollo-server-express';
 
 const typeDefs = gql`
   scalar Upload
@@ -59,6 +59,10 @@ const typeDefs = gql`
     createUser(name: String!, email: String!, timezone: String!): User
     updateUserTimezone(id: ID!, timezone: String!): User
   }
+
+  type Subscription {
+    appointmentsUpdated(userEmail: String!): [Appointment]
+  }
 `;
 
-module.exports = typeDefs;
+export default typeDefs;
