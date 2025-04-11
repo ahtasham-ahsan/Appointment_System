@@ -12,13 +12,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
-// Create a PubSub instance using graphql-yoga's implementation
 const pubsub = createPubSub();
-
-// Define the event for the subscription
 const APPOINTMENTS_UPDATED = 'APPOINTMENTS_UPDATED';
 
-// Helper function to get formatted appointments
 const getFormattedAppointments = async (userEmail) => {
   const user = await User.findOne({ email: userEmail });
   const timezone = user ? user.timezone : "UTC";
