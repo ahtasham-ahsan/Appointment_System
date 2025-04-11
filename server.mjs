@@ -10,9 +10,9 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import { graphqlUploadExpress } from 'graphql-upload';
 
-import connectDB from './config/db.mjs';
-import typeDefs from './graphql/typeDefs.mjs';
-import resolvers, { pubsub } from './graphql/resolvers.mjs';
+import connectDB from './src/config/db.mjs';
+import typeDefs from './src/graphql/typeDefs.mjs';
+import resolvers, { pubsub } from './src/graphql/resolvers.mjs';
 
 dotenv.config();
 
