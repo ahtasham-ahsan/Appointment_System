@@ -1,3 +1,4 @@
+// graphql/resolvers.mjs
 import moment from 'moment-timezone';
 import path from 'path';
 import fs from 'fs';
@@ -11,118 +12,112 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
 const pubsub = createPubSub();
 const APPOINTMENTS_UPDATED = 'APPOINTMENTS_UPDATED';
 
 const getFormattedAppointments = async (userEmail) => {
   const user = await User.findOne({ email: userEmail });
-  const timezone = user ? user.timezone : "UTC";
+  const timezone = user?.timezone || "UTC";
   const appointments = await Appointment.find({ participants: userEmail });
 
-  return appointments.map(appointment => {
+  return appointments.map((appointment) => {
     const plain = appointment.toObject();
-    const { _id, date, time } = plain;
-    const dateStr = date instanceof Date ? moment(date).format("YYYY-MM-DD") : String(date);
-    const timeStr = typeof time === "string" ? time : String(time);
-    const combined = `${dateStr}T${timeStr}`;
+    const dateStr = moment(plain.date).format("YYYY-MM-DD");
+    const combined = `${dateStr}T${plain.time}`;
     const momentObj = moment.utc(combined, "YYYY-MM-DDTHH:mm");
 
     if (!momentObj.isValid()) {
-      return {
-        ...plain,
-        id: _id.toString(),
-        date: "Invalid date",
-        time: "Invalid time"
-      };
+      return { ...plain, id: plain._id.toString(), date: "Invalid", time: "Invalid" };
     }
 
     return {
       ...plain,
-      id: _id.toString(),
+      id: plain._id.toString(),
       date: momentObj.clone().tz(timezone).format("YYYY-MM-DD"),
-      time: momentObj.clone().tz(timezone).format("hh:mm A")
+      time: momentObj.clone().tz(timezone).format("hh:mm A"),
     };
   });
 };
 
+const checkAuth = (user) => {
+  if (!user) throw new Error("Not authenticated");
+};
+
 const resolvers = {
   Query: {
-    getAppointments: async (_, { userEmail }) => {
-      return await getFormattedAppointments(userEmail);
+    getAppointments: async (_, __, { user }) => {
+      checkAuth(user);
+      return await getFormattedAppointments(user.email);
     },
-    getAppointment: async (_, { id, userEmail }) => {
-      const user = await User.findOne({ email: userEmail });
-      const timezone = user ? user.timezone : "UTC";
+    getAppointment: async (_, { id }, { user }) => {
+      checkAuth(user);
       const appointment = await Appointment.findById(id);
-      if (!appointment) throw new Error("Appointment not found");
-
-      const plain = appointment.toObject();
-      const { _id, date, time } = plain;
-      const dateStr = date instanceof Date ? moment(date).format("YYYY-MM-DD") : String(date);
-      const timeStr = typeof time === "string" ? time : String(time);
-      const combined = `${dateStr}T${timeStr}`;
-      const momentObj = moment.utc(combined, "YYYY-MM-DDTHH:mm");
-
-      if (!momentObj.isValid()) {
-        return {
-          ...plain,
-          id: _id.toString(),
-          date: "Invalid date",
-          time: "Invalid time"
-        };
+      if (!appointment || !appointment.participants.includes(user.email)) {
+        throw new Error("Unauthorized access");
       }
-
-      return {
-        ...plain,
-        id: _id.toString(),
-        date: momentObj.clone().tz(timezone).format("YYYY-MM-DD"),
-        time: momentObj.clone().tz(timezone).format("hh:mm A")
-      };
+      return (await getFormattedAppointments(user.email)).find(app => app.id === id);
     },
-    getUser: async (_, { id }) => {
-      const user = await User.findById(id);
-      if (!user) throw new Error("User not found");
-      return user;
+    getUser: async (_, __, { user }) => {
+      checkAuth(user);
+      return await User.findById(user.id);
     }
   },
 
   Mutation: {
-    createAppointment: async (_, { title, description, date, time, participants, file }) => {
-      const filename = file;
-      const ext = path.extname(filename).toLowerCase();
-      const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
+    createAppointment: async (_, { title, description, date, time, participants, file }, { user }) => {
+      checkAuth(user);
 
-      if (!allowedExtensions.includes(ext)) {
-        throw new Error("Unsupported file type.");
-      }
-
-      const tempFilePath = path.join(__dirname, "../public", filename);
+      let attachment = null;
       let contentPreview = null;
-      if (fs.existsSync(tempFilePath)) {
-        const fileContent = fs.readFileSync(tempFilePath, 'utf8');
-        contentPreview = fileContent.substring(0, 1024);
-      }
 
-      const { secure_url } = await cloudinary.uploader.upload(tempFilePath, {
-        folder: "appointments",
-        resource_type: "raw",
-        use_filename: true,
-        unique_filename: false
-      });
+      if (file) {
+        const { createReadStream, filename } = await file;
+        const stream = createReadStream();
+        const ext = path.extname(filename).toLowerCase();
+        const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
+
+        if (!allowedExtensions.includes(ext)) {
+          throw new Error("Unsupported file type.");
+        }
+
+        const tempPath = path.join(__dirname, "../public", filename);
+        const out = fs.createWriteStream(tempPath);
+        stream.pipe(out);
+
+        await new Promise((resolve, reject) => {
+          out.on("finish", resolve);
+          out.on("error", reject);
+        });
+
+        const { secure_url } = await cloudinary.uploader.upload(tempPath, {
+          folder: "appointments",
+          resource_type: "raw",
+          use_filename: true,
+          unique_filename: false
+        });
+
+        contentPreview = fs.existsSync(tempPath)
+          ? fs.readFileSync(tempPath, 'utf8').substring(0, 1024)
+          : null;
+
+        attachment = { url: secure_url, filename };
+        fs.unlinkSync(tempPath);
+      }
 
       const newAppointment = new Appointment({
         title,
         description,
-        date: new Date(date),
+        date,
         time,
         participants,
-        attachment: { url: secure_url, filename },
+        status: 'Scheduled',
+        attachment,
         contentPreview
       });
 
       const saved = await newAppointment.save();
-      await sendEmailNotification(participants, "New Appointment Created", `Your appointment "${title}" is on ${date} at ${time}.`);
+
+      await sendEmailNotification(participants, "New Appointment Created", `Appointment "${title}" on ${date} at ${time}.`);
 
       for (const email of participants) {
         const updated = await getFormattedAppointments(email);
@@ -131,38 +126,41 @@ const resolvers = {
         });
       }
 
-      return {
-        ...saved._doc,
-        id: saved._id.toString(),
-        date,
-        time,
-      };
+      return { ...saved.toObject(), id: saved._id.toString() };
     },
 
-    updateAppointment: async (_, { id, title, description, date, time, participants }) => {
-      const updated = await Appointment.findByIdAndUpdate(id, { title, description, date, time, participants }, { new: true });
-      if (!updated) throw new Error("Appointment not found");
+    updateAppointment: async (_, { id, ...updates }, { user }) => {
+      checkAuth(user);
+      const appointment = await Appointment.findById(id);
+      if (!appointment || !appointment.participants.includes(user.email)) {
+        throw new Error("Unauthorized");
+      }
 
-      await sendEmailNotification(participants, "Appointment Updated", `Your appointment "${title}" has been updated.`);
+      Object.assign(appointment, updates);
+      await appointment.save();
 
-      for (const email of participants) {
+      await sendEmailNotification(appointment.participants, "Appointment Updated", `Appointment "${appointment.title}" updated.`);
+
+      for (const email of appointment.participants) {
         const updatedList = await getFormattedAppointments(email);
         pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
           appointmentsUpdated: updatedList
         });
       }
 
-      return updated;
+      return appointment;
     },
 
-    rescheduleAppointment: async (_, { id, date, time }) => {
+    rescheduleAppointment: async (_, { id, date, time }, { user }) => {
+      checkAuth(user);
       const appointment = await Appointment.findById(id);
-      if (!appointment) throw new Error("Appointment not found");
+      if (!appointment || !appointment.participants.includes(user.email)) {
+        throw new Error("Unauthorized");
+      }
 
       const newDateTime = new Date(`${date}T${time}`);
-      const now = new Date();
-      if (newDateTime < now) {
-        throw new Error("Cannot reschedule an appointment to a past date/time");
+      if (newDateTime < new Date()) {
+        throw new Error("Cannot reschedule to the past");
       }
 
       appointment.date = date;
@@ -170,30 +168,7 @@ const resolvers = {
       appointment.status = 'Rescheduled';
       await appointment.save();
 
-      await sendEmailNotification(
-        appointment.participants,
-        "Appointment Rescheduled",
-        `Your appointment "${appointment.title}" has been rescheduled.`
-      );
-
-      for (const email of appointment.participants) {
-        const updated = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
-          appointmentsUpdated: updated,
-        });
-      }
-
-      return appointment;
-    },
-
-    cancelAppointment: async (_, { id }) => {
-      const appointment = await Appointment.findById(id);
-      if (!appointment) throw new Error("Appointment not found");
-
-      appointment.status = 'Canceled';
-      await appointment.save();
-
-      await sendEmailNotification(appointment.participants, "Appointment Canceled", `Your appointment "${appointment.title}" has been canceled.`);
+      await sendEmailNotification(appointment.participants, "Appointment Rescheduled", `Appointment "${appointment.title}" has been rescheduled.`);
 
       for (const email of appointment.participants) {
         const updated = await getFormattedAppointments(email);
@@ -205,13 +180,37 @@ const resolvers = {
       return appointment;
     },
 
-    deleteAppointment: async (_, { id }) => {
+    cancelAppointment: async (_, { id }, { user }) => {
+      checkAuth(user);
       const appointment = await Appointment.findById(id);
-      if (!appointment) throw new Error("Appointment not found");
+      if (!appointment || !appointment.participants.includes(user.email)) {
+        throw new Error("Unauthorized");
+      }
+
+      appointment.status = 'Canceled';
+      await appointment.save();
+
+      await sendEmailNotification(appointment.participants, "Appointment Canceled", `Appointment "${appointment.title}" has been canceled.`);
+
+      for (const email of appointment.participants) {
+        const updated = await getFormattedAppointments(email);
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updated
+        });
+      }
+
+      return appointment;
+    },
+
+    deleteAppointment: async (_, { id }, { user }) => {
+      checkAuth(user);
+      const appointment = await Appointment.findById(id);
+      if (!appointment || !appointment.participants.includes(user.email)) {
+        throw new Error("Unauthorized");
+      }
 
       await Appointment.findByIdAndDelete(id);
-
-      await sendEmailNotification(appointment.participants, "Appointment Deleted", `Your appointment "${appointment.title}" has been deleted.`);
+      await sendEmailNotification(appointment.participants, "Appointment Deleted", `Appointment "${appointment.title}" has been deleted.`);
 
       for (const email of appointment.participants) {
         const updated = await getFormattedAppointments(email);
@@ -231,22 +230,21 @@ const resolvers = {
       return newUser;
     },
 
-    updateUserTimezone: async (_, { id, timezone }) => {
-      const user = await User.findByIdAndUpdate(id, { timezone }, { new: true });
-      if (!user) throw new Error("User not found");
-      return user;
+    updateUserTimezone: async (_, { id, timezone }, { user }) => {
+      checkAuth(user);
+      if (user.id !== id) throw new Error("Unauthorized");
+      const updated = await User.findByIdAndUpdate(id, { timezone }, { new: true });
+      return updated;
     }
   },
 
   Subscription: {
     appointmentsUpdated: {
-      subscribe: (_, { userEmail }) => {
-        console.log("Subscription requested for:", userEmail);
+      subscribe: (_, { userEmail }, { user }) => {
+        if (!user || user.email !== userEmail) throw new Error("Unauthorized");
         return pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`);
       },
-      resolve: (payload) => {
-        return payload.appointmentsUpdated;
-      }
+      resolve: (payload) => payload.appointmentsUpdated
     },
   },
 };
