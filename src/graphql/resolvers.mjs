@@ -104,12 +104,17 @@ const resolvers = {
         contentPreview = fileContent.substring(0, 1024);
       }
 
-      const { secure_url } = await cloudinary.uploader.upload(tempFilePath, {
-        folder: "appointments",
-        resource_type: "raw",
-        use_filename: true,
-        unique_filename: false
-      });
+      try {
+        const { secure_url } = await cloudinary.uploader.upload(tempFilePath, {
+          folder: "appointments",
+          resource_type: "raw",
+          use_filename: true,
+          unique_filename: false
+        });
+      } catch (err) {
+        console.error("Cloudinary upload failed:", err);
+        throw new Error("File upload failed: " + (err.message || "Unknown error"));
+      }
 
       const newAppointment = new Appointment({
         title,
@@ -126,8 +131,8 @@ const resolvers = {
 
       for (const email of participants) {
         const updated = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updated 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updated
         });
       }
 
@@ -147,8 +152,8 @@ const resolvers = {
 
       for (const email of participants) {
         const updatedList = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updatedList 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updatedList
         });
       }
 
@@ -168,8 +173,8 @@ const resolvers = {
 
       for (const email of appointment.participants) {
         const updated = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updated 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updated
         });
       }
 
@@ -187,8 +192,8 @@ const resolvers = {
 
       for (const email of appointment.participants) {
         const updated = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updated 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updated
         });
       }
 
@@ -205,8 +210,8 @@ const resolvers = {
 
       for (const email of appointment.participants) {
         const updated = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updated 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updated
         });
       }
 

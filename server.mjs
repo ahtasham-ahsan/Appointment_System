@@ -39,7 +39,7 @@ async function startServer() {
   );
 
   const apolloServer = new ApolloServer({
-    schema, 
+    schema,
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {
@@ -54,9 +54,11 @@ async function startServer() {
     ],
   });
 
-  await apolloServer.start(); 
+  await apolloServer.start();
   app.use(cors());
-  app.use(bodyParser.json());
+  // app.use(bodyParser.json());
+  app.use(express.json());
+
   app.use(graphqlUploadExpress());
 
   app.use(
