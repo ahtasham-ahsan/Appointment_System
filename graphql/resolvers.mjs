@@ -163,6 +163,7 @@ const resolvers = {
 
     rescheduleAppointment: async (_, { id, date, time }, { user }) => {
       checkAuth(user);
+      console.log("Rescheduled Appointment", user)
       const user1 = await User.findById(user);
       console.log(user1)
       const appointment = await Appointment.findById(id);
@@ -195,7 +196,7 @@ const resolvers = {
 
     cancelAppointment: async (_, { id }, { user }) => {
       checkAuth(user);
-      console.log(user)
+      console.log(user);
       const user1 = await User.findById(user);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
@@ -219,8 +220,10 @@ const resolvers = {
 
     deleteAppointment: async (_, { id }, { user }) => {
       checkAuth(user);
+      console.log(user);
+      const user1 = await User.findById(user)
       const appointment = await Appointment.findById(id);
-      if (!appointment || !appointment.participants.includes(user.email)) {
+      if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
       }
 
@@ -272,7 +275,6 @@ const resolvers = {
 
     updateUserTimezone: async (_, { id, timezone }, { user }) => {
       checkAuth(user);
-      if (user.id !== id) throw new Error("Unauthorized");
       const updated = await User.findByIdAndUpdate(id, { timezone }, { new: true });
       return updated;
     }
@@ -280,8 +282,11 @@ const resolvers = {
 
   Subscription: {
     appointmentsUpdated: {
-      subscribe: (_, { userEmail }, { user }) => {
-        if (!user || user.email !== userEmail) throw new Error("Unauthorized");
+      subscribe: async (_, { userEmail }, context) => {
+        console.log("context", context)
+        const userEmailFromContext = context.user.email
+
+        if (!context || userEmailFromContext !== userEmail) throw new Error("Unauthorized");
         return pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`);
       },
       resolve: (payload) => payload.appointmentsUpdated

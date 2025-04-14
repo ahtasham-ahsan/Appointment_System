@@ -41,15 +41,17 @@ async function startServer() {
   const serverCleanup = useServer({
     schema,
     context: async (ctx) => {
-      const token = ctx.connectionParams?.authorization?.split(' ')[1];
+      console.log("ctx", ctx.connectionParams.Authorization)
+      const token = ctx.connectionParams?.Authorization?.split(' ')[1];
       let user = null;
       if (token) {
         try {
-          user = jwt.verify(token, process.env.JWT_SECRET);
+          user = jwt.verify(token, process.env.JWT_TOKEN);
         } catch {
           console.error("Invalid token in subscription");
         }
       }
+      console.log("user", user)
       return { pubsub, user };
     },
   }, wsServer);
