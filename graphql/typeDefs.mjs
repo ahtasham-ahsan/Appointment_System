@@ -1,4 +1,4 @@
-import gql from 'graphql-tag';
+import { gql } from 'apollo-server-express';
 
 const typeDefs = gql`
   scalar Upload
@@ -7,7 +7,7 @@ const typeDefs = gql`
     id: ID!
     name: String!
     email: String!
-    timezone: String
+    timezone: String!
   }
 
   type Attachment {
@@ -27,14 +27,25 @@ const typeDefs = gql`
     contentPreview: String
   }
 
+  type AuthPayload {
+    user: User!
+    token: String!
+  }
+
   type Query {
-    getAppointments: [Appointment!]!
-    getAppointment(id: ID!): Appointment
-    getUser: User!
+    getAppointments(userEmail: String!): [Appointment!]!
+    getAppointment(id: ID!, userEmail: String!): Appointment
+    getUser(id: ID!): User!
   }
 
   type Mutation {
-    createUser(name: String!, email: String!, timezone: String): User!
+    createUser(
+      name: String!
+      email: String!
+      timezone: String!
+      password: String!
+    ): AuthPayload!
+
     updateUserTimezone(id: ID!, timezone: String!): User!
 
     createAppointment(

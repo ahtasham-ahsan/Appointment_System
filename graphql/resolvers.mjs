@@ -9,6 +9,11 @@ import Appointment from '../models/Appointment.js';
 import sendEmailNotification from '../utils/emailService.js';
 import { fileURLToPath } from 'url';
 
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+const SECRET_KEY = process.env.JWT_SECRET_KEY || 'secret_Key';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -222,13 +227,38 @@ const resolvers = {
       return "Appointment successfully deleted.";
     },
 
-    createUser: async (_, { name, email, timezone }) => {
-      const existing = await User.findOne({ email });
-      if (existing) throw new Error("User already exists.");
-      const newUser = new User({ name, email, timezone });
+    createUser: async (_, { name, email, timezone, password }) => {
+      // Check if user already exists
+      const existingUser = await User.findOne({ email });
+      if (existingUser) throw new Error("User already exists.");
+
+      // Hash password before saving
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create and save the new user
+      const newUser = new User({
+        name,
+        email,
+        timezone,
+        password: hashedPassword, // Save the hashed password
+      });
+
       await newUser.save();
-      return newUser;
+
+      // Generate a JWT token for the newly created user
+      const token = jwt.sign(
+        { userId: newUser.id, email: newUser.email },
+        SECRET_KEY,
+        { expiresIn: '1h' } // Token expires in 1 hour
+      );
+
+      // Return user and token in the response
+      return {
+        user: newUser,
+        token,
+      };
     },
+
 
     updateUserTimezone: async (_, { id, timezone }, { user }) => {
       checkAuth(user);
