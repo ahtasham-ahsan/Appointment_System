@@ -103,7 +103,7 @@ const resolvers = {
         const fileContent = fs.readFileSync(tempFilePath, 'utf8');
         contentPreview = fileContent.substring(0, 1024);
       }
-
+      let secure_url = null;
       try {
         const { secure_url } = await cloudinary.uploader.upload(tempFilePath, {
           folder: "appointments",
