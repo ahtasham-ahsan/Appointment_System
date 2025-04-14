@@ -45,22 +45,24 @@ const getFormattedAppointments = async (userEmail) => {
 };
 
 const checkAuth = (user) => {
+
   if (!user) throw new Error("Not authenticated");
 };
 
 const resolvers = {
   Query: {
-    getAppointments: async (_, __, { user }) => {
+    getAppointments: async (_, { userEmail }, { user }) => {
+      //const userFromDb = await User.findById(user)
       checkAuth(user);
-      return await getFormattedAppointments(user.email);
+      return await getFormattedAppointments(userEmail);
     },
-    getAppointment: async (_, { id }, { user }) => {
+    getAppointment: async (_, { id, userEmail }, { user }) => {
       checkAuth(user);
       const appointment = await Appointment.findById(id);
-      if (!appointment || !appointment.participants.includes(user.email)) {
+      if (!appointment || !appointment.participants.includes(userEmail)) {
         throw new Error("Unauthorized access");
       }
-      return (await getFormattedAppointments(user.email)).find(app => app.id === id);
+      return (await getFormattedAppointments(userEmail)).find(app => app.id === id);
     },
     getUser: async (_, __, { user }) => {
       checkAuth(user);
@@ -76,23 +78,23 @@ const resolvers = {
       let contentPreview = null;
 
       if (file) {
-        const { createReadStream, filename } = await file;
-        const stream = createReadStream();
-        const ext = path.extname(filename).toLowerCase();
-        const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
+        // const { createReadStream, filename } = file;
+        // const stream = createReadStream();
+        // const ext = path.extname(filename).toLowerCase();
+        // const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
 
-        if (!allowedExtensions.includes(ext)) {
-          throw new Error("Unsupported file type.");
-        }
+        // if (!allowedExtensions.includes(ext)) {
+        //   throw new Error("Unsupported file type.");
+        // }
 
-        const tempPath = path.join(__dirname, "../public", filename);
-        const out = fs.createWriteStream(tempPath);
-        stream.pipe(out);
+        const tempPath = path.join(__dirname, "../public", file);
+        // const out = fs.createWriteStream(tempPath);
+        // stream.pipe(out);
 
-        await new Promise((resolve, reject) => {
-          out.on("finish", resolve);
-          out.on("error", reject);
-        });
+        // await new Promise((resolve, reject) => {
+        //   out.on("finish", resolve);
+        //   out.on("error", reject);
+        // });
 
         const { secure_url } = await cloudinary.uploader.upload(tempPath, {
           folder: "appointments",
@@ -105,8 +107,8 @@ const resolvers = {
           ? fs.readFileSync(tempPath, 'utf8').substring(0, 1024)
           : null;
 
-        attachment = { url: secure_url, filename };
-        fs.unlinkSync(tempPath);
+        attachment = { url: secure_url, filename: file };
+        //fs.unlinkSync(tempPath);
       }
 
       const newAppointment = new Appointment({
@@ -135,9 +137,12 @@ const resolvers = {
     },
 
     updateAppointment: async (_, { id, ...updates }, { user }) => {
+      console.log(user)
       checkAuth(user);
+      const user1 = await User.findById(user);
+      console.log(user1.email)
       const appointment = await Appointment.findById(id);
-      if (!appointment || !appointment.participants.includes(user.email)) {
+      if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
       }
 
@@ -158,8 +163,11 @@ const resolvers = {
 
     rescheduleAppointment: async (_, { id, date, time }, { user }) => {
       checkAuth(user);
+      const user1 = await User.findById(user);
+      console.log(user1)
       const appointment = await Appointment.findById(id);
-      if (!appointment || !appointment.participants.includes(user.email)) {
+      console.log(appointment)
+      if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
       }
 
@@ -187,8 +195,10 @@ const resolvers = {
 
     cancelAppointment: async (_, { id }, { user }) => {
       checkAuth(user);
+      console.log(user)
+      const user1 = await User.findById(user);
       const appointment = await Appointment.findById(id);
-      if (!appointment || !appointment.participants.includes(user.email)) {
+      if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
       }
 

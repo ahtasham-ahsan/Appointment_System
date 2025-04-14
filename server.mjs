@@ -25,7 +25,8 @@ const getUserFromToken = (authHeader) => {
   try {
     if (!authHeader) return null;
     const token = authHeader.split(' ')[1];
-    return jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_TOKEN);
+    return decoded.userId
   } catch {
     return null;
   }
@@ -67,7 +68,8 @@ async function startServer() {
 
   await apolloServer.start();
   app.use(cors());
-  app.use(bodyParser.json());
+  //app.use(bodyParser.json());
+  app.use(express.json())
   app.use(graphqlUploadExpress());
 
   app.use('/graphql', expressMiddleware(apolloServer, {
