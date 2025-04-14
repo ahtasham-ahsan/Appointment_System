@@ -126,8 +126,8 @@ const resolvers = {
 
       for (const email of participants) {
         const updated = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updated 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updated
         });
       }
 
@@ -147,8 +147,8 @@ const resolvers = {
 
       for (const email of participants) {
         const updatedList = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updatedList 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updatedList
         });
       }
 
@@ -159,17 +159,27 @@ const resolvers = {
       const appointment = await Appointment.findById(id);
       if (!appointment) throw new Error("Appointment not found");
 
+      const newDateTime = new Date(`${date}T${time}`);
+      const now = new Date();
+      if (newDateTime < now) {
+        throw new Error("Cannot reschedule an appointment to a past date/time");
+      }
+
       appointment.date = date;
       appointment.time = time;
       appointment.status = 'Rescheduled';
       await appointment.save();
 
-      await sendEmailNotification(appointment.participants, "Appointment Rescheduled", `Your appointment "${appointment.title}" has been rescheduled.`);
+      await sendEmailNotification(
+        appointment.participants,
+        "Appointment Rescheduled",
+        `Your appointment "${appointment.title}" has been rescheduled.`
+      );
 
       for (const email of appointment.participants) {
         const updated = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updated 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updated,
         });
       }
 
@@ -187,8 +197,8 @@ const resolvers = {
 
       for (const email of appointment.participants) {
         const updated = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updated 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updated
         });
       }
 
@@ -205,8 +215,8 @@ const resolvers = {
 
       for (const email of appointment.participants) {
         const updated = await getFormattedAppointments(email);
-        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, { 
-          appointmentsUpdated: updated 
+        pubsub.publish(`${APPOINTMENTS_UPDATED}_${email}`, {
+          appointmentsUpdated: updated
         });
       }
 
