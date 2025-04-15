@@ -10,10 +10,9 @@ const typeDefs = gql`
     timezone: String!
   }
 
-  type FileMeta {
-    url: String
-    filename: String
-    mimetype: String
+  type Attachment {
+    url: String!
+    filename: String!
   }
 
   type Appointment {
@@ -22,27 +21,41 @@ const typeDefs = gql`
     description: String
     date: String!
     time: String!
-    participants: [String]!
+    participants: [String!]!
     status: String!
-    attachment: FileMeta
+    attachment: Attachment
     contentPreview: String
   }
 
+  type AuthPayload {
+    user: User!
+    token: String!
+  }
+
   type Query {
-    getAppointments(userEmail: String!): [Appointment]
+    getAppointments(userEmail: String!): [Appointment!]!
     getAppointment(id: ID!, userEmail: String!): Appointment
-    getUser(id: ID!): User
+    getUser(id: ID!): User!
   }
 
   type Mutation {
+    createUser(
+      name: String!
+      email: String!
+      timezone: String!
+      password: String!
+    ): AuthPayload!
+
+    updateUserTimezone(id: ID!, timezone: String!): User!
+
     createAppointment(
       title: String!
       description: String
       date: String!
       time: String!
-      participants: [String]!
+      participants: [String!]!
       file: Upload
-    ): Appointment
+    ): Appointment!
 
     updateAppointment(
       id: ID!
@@ -50,18 +63,17 @@ const typeDefs = gql`
       description: String
       date: String
       time: String
-      participants: [String]
-    ): Appointment
+      participants: [String!]
+      status: String
+    ): Appointment!
 
-    rescheduleAppointment(id: ID!, date: String!, time: String!): Appointment
-    cancelAppointment(id: ID!): Appointment
-    deleteAppointment(id: ID!): String
-    createUser(name: String!, email: String!, timezone: String!): User
-    updateUserTimezone(id: ID!, timezone: String!): User
+    rescheduleAppointment(id: ID!, date: String!, time: String!): Appointment!
+    cancelAppointment(id: ID!): Appointment!
+    deleteAppointment(id: ID!): String!
   }
 
   type Subscription {
-    appointmentsUpdated(userEmail: String!): [Appointment]
+    appointmentsUpdated(userEmail: String!): [Appointment!]!
   }
 `;
 
