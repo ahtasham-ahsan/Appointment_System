@@ -39,7 +39,7 @@ async function startServer() {
   );
 
   const apolloServer = new ApolloServer({
-    schema, 
+    schema,
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {
@@ -54,9 +54,9 @@ async function startServer() {
     ],
   });
 
-  await apolloServer.start(); 
+  await apolloServer.start();
   app.use(cors());
-  app.use(bodyParser.json());
+  //app.use(bodyParser.json());
   app.use(express.json())
   app.use(graphqlUploadExpress());
 
@@ -69,7 +69,7 @@ async function startServer() {
 
   app.get('/', (req, res) => {
     res.send('Welcome to the Appointment Management GraphQL API. Visit /graphql to use the API.');
-  });  
+  });
 
   const PORT = process.env.PORT || 5000;
   httpServer.listen(PORT, () => {
