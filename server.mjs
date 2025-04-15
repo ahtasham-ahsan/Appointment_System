@@ -44,6 +44,7 @@ async function startServer() {
       console.log("ctx", ctx.connectionParams.Authorization)
       const token = ctx.connectionParams?.Authorization?.split(' ')[1];
       let user = null;
+      console.log(token)
       if (token) {
         try {
           user = jwt.verify(token, process.env.JWT_TOKEN);
