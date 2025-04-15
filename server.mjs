@@ -66,6 +66,10 @@ async function startServer() {
     })
   );
 
+  app.get('/', (req, res) => {
+    res.send('Welcome to the Appointment Management GraphQL API. Visit /graphql to use the API.');
+  });  
+
   const PORT = process.env.PORT || 5000;
   httpServer.listen(PORT, () => {
     console.log(`Server ready at http://localhost:${PORT}/graphql`);
