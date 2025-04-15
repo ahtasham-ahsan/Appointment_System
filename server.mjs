@@ -7,6 +7,7 @@ import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHt
 import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/lib/use/ws';
 import cors from 'cors';
+import bodyParser from 'body-parser';
 import { graphqlUploadExpress } from 'graphql-upload';
 
 import connectDB from './config/db.mjs';
@@ -38,8 +39,7 @@ async function startServer() {
   );
 
   const apolloServer = new ApolloServer({
-    schema,
-    introspection: true,
+    schema, 
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {
@@ -54,10 +54,10 @@ async function startServer() {
     ],
   });
 
-  await apolloServer.start();
-
+  await apolloServer.start(); 
   app.use(cors());
-  app.use(express.json());
+  // app.use(bodyParser.json());
+  app.use(express.json())
   app.use(graphqlUploadExpress());
 
   app.use(
@@ -69,7 +69,7 @@ async function startServer() {
 
   app.get('/', (req, res) => {
     res.send('Welcome to the Appointment Management GraphQL API. Visit /graphql to use the API.');
-  });
+  });  
 
   const PORT = process.env.PORT || 5000;
   httpServer.listen(PORT, () => {
