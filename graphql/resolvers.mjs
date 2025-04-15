@@ -78,23 +78,14 @@ const resolvers = {
       let contentPreview = null;
 
       if (file) {
-        // const { createReadStream, filename } = file;
-        // const stream = createReadStream();
-        // const ext = path.extname(filename).toLowerCase();
-        // const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
+        const ext = path.extname(file).toLowerCase();
+        const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt'];
 
-        // if (!allowedExtensions.includes(ext)) {
-        //   throw new Error("Unsupported file type.");
-        // }
+        if (!allowedExtensions.includes(ext)) {
+          throw new Error("Unsupported file type.");
+        }
 
         const tempPath = path.join(__dirname, "../public", file);
-        // const out = fs.createWriteStream(tempPath);
-        // stream.pipe(out);
-
-        // await new Promise((resolve, reject) => {
-        //   out.on("finish", resolve);
-        //   out.on("error", reject);
-        // });
 
         const { secure_url } = await cloudinary.uploader.upload(tempPath, {
           folder: "appointments",
@@ -108,7 +99,6 @@ const resolvers = {
           : null;
 
         attachment = { url: secure_url, filename: file };
-        //fs.unlinkSync(tempPath);
       }
 
       const newAppointment = new Appointment({
@@ -137,10 +127,8 @@ const resolvers = {
     },
 
     updateAppointment: async (_, { id, ...updates }, { user }) => {
-      console.log(user)
       checkAuth(user);
       const user1 = await User.findById(user);
-      console.log(user1.email)
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
@@ -163,11 +151,8 @@ const resolvers = {
 
     rescheduleAppointment: async (_, { id, date, time }, { user }) => {
       checkAuth(user);
-      console.log("Rescheduled Appointment", user)
       const user1 = await User.findById(user);
-      console.log(user1)
       const appointment = await Appointment.findById(id);
-      console.log(appointment)
       if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
       }
@@ -196,7 +181,6 @@ const resolvers = {
 
     cancelAppointment: async (_, { id }, { user }) => {
       checkAuth(user);
-      console.log(user);
       const user1 = await User.findById(user);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
@@ -220,7 +204,6 @@ const resolvers = {
 
     deleteAppointment: async (_, { id }, { user }) => {
       checkAuth(user);
-      console.log(user);
       const user1 = await User.findById(user)
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
@@ -241,31 +224,25 @@ const resolvers = {
     },
 
     createUser: async (_, { name, email, timezone, password }) => {
-      // Check if user already exists
       const existingUser = await User.findOne({ email });
       if (existingUser) throw new Error("User already exists.");
 
-      // Hash password before saving
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Create and save the new user
       const newUser = new User({
         name,
         email,
         timezone,
-        password: hashedPassword, // Save the hashed password
+        password: hashedPassword,
       });
 
       await newUser.save();
 
-      // Generate a JWT token for the newly created user
       const token = jwt.sign(
         { userId: newUser.id, email: newUser.email },
         SECRET_KEY,
-        { expiresIn: '1h' } // Token expires in 1 hour
+        { expiresIn: '1h' }
       );
-
-      // Return user and token in the response
       return {
         user: newUser,
         token,
