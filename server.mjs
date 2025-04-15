@@ -1,20 +1,17 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import { createServer } from 'http';
-// import { ApolloServer } from '@apollo/server';
+import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/lib/use/ws';
 import cors from 'cors';
-import bodyParser from 'body-parser';
 import { graphqlUploadExpress } from 'graphql-upload';
 
 import connectDB from './config/db.mjs';
 import typeDefs from './graphql/typeDefs.mjs';
 import resolvers, { pubsub } from './graphql/resolvers.mjs';
-import { ApolloServer } from 'apollo-server-express';
-import { ApolloServerPluginLandingPageGraphQLPlayground } from 'apollo-server-core';
 
 dotenv.config();
 
@@ -44,7 +41,6 @@ async function startServer() {
     schema,
     introspection: true,
     plugins: [
-      ApolloServerPluginLandingPageGraphQLPlayground(),
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {
         async serverWillStart() {
@@ -59,9 +55,9 @@ async function startServer() {
   });
 
   await apolloServer.start();
+
   app.use(cors());
-  //app.use(bodyParser.json());
-  app.use(express.json())
+  app.use(express.json());
   app.use(graphqlUploadExpress());
 
   app.use(
