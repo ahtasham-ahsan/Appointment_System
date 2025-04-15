@@ -57,6 +57,7 @@ async function startServer() {
   await apolloServer.start(); 
   app.use(cors());
   app.use(bodyParser.json());
+  app.use(express.json())
   app.use(graphqlUploadExpress());
 
   app.use(
