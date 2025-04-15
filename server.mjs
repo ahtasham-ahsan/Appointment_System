@@ -14,13 +14,15 @@ import jwt from 'jsonwebtoken';
 import connectDB from './config/db.mjs';
 import typeDefs from './graphql/typeDefs.mjs';
 import resolvers, { pubsub } from './graphql/resolvers.mjs';
+import mongoose from 'mongoose';
 
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
 
-const getUserFromToken = (authHeader) => {
+const getUserFromToken = (req, res) => {
+  console.log(authHeader)
   try {
     if (!authHeader) return null;
     const token = authHeader.split(' ')[1];
@@ -51,7 +53,7 @@ async function startServer() {
           console.error("Invalid token in subscription");
         }
       }
-      console.log("user", user)
+      console.log("user", user);
       return { pubsub, user };
     },
   }, wsServer);
@@ -69,7 +71,10 @@ async function startServer() {
   });
 
   await apolloServer.start();
-  app.use(cors());
+  app.use(cors({
+    origin: ['https://studio.apollographql.com'],
+    credentials: true
+  }));
   // app.use(bodyParser.json());
   app.use(express.json())
   app.use(graphqlUploadExpress());
@@ -77,7 +82,19 @@ async function startServer() {
   app.use(
     '/graphql',
     expressMiddleware(apolloServer, {
-      context: async () => ({ pubsub }),
+      context: async ({ req }) => {
+        try {
+          const token = req.headers?.authorization.split(' ')[1]
+          console.log("token", token)
+          if (!token) return null;
+          const decodedUser = jwt.verify(token, process.env.JWT_TOKEN);
+          console.log("decodedUser", typeof decodedUser.userId)
+          return decodedUser.userId;
+        } catch (error) {
+          console.log("Error in context", JSON.stringify(error, null, 2))
+          return null;
+        }
+      },
     })
   );
 
