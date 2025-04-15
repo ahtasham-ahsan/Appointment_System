@@ -1,4 +1,3 @@
-// server.mjs
 import dotenv from 'dotenv';
 import express from 'express';
 import { createServer } from 'http';
@@ -71,7 +70,8 @@ async function startServer() {
 
   await apolloServer.start();
   app.use(cors());
-  app.use(bodyParser.json());
+  // app.use(bodyParser.json());
+  app.use(express.json())
   app.use(graphqlUploadExpress());
 
   app.use(
