@@ -4,7 +4,6 @@ import { createServer } from 'http';
 import { ApolloServer } from '@apollo/server'; 
 import { expressMiddleware } from '@apollo/server/express4'; 
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer'; 
-// ADD THIS IMPORT
 import { ApolloServerPluginLandingPageLocalDefault, ApolloServerPluginLandingPageProductionDefault } from '@apollo/server/plugin/landingPage/default';
 import { WebSocketServer } from 'ws'; 
 import { useServer } from 'graphql-ws/lib/use/ws'; 
@@ -15,7 +14,7 @@ import jwt from 'jsonwebtoken';
 import connectDB from './config/db.mjs'; 
 import typeDefs from './graphql/typeDefs.mjs'; 
 import resolvers, { pubsub } from './graphql/resolvers.mjs'; 
-import mongoose from 'mongoose'; 
+
 dotenv.config(); 
 const app = express(); 
 const httpServer = createServer(app); 
@@ -58,7 +57,6 @@ async function startServer() {
     introspection: true, 
     plugins: [ 
       ApolloServerPluginDrainHttpServer({ httpServer }), 
-      // ADD THESE PLAYGROUND PLUGINS
       process.env.NODE_ENV === 'production'
         ? ApolloServerPluginLandingPageProductionDefault({ embed: true })
         : ApolloServerPluginLandingPageLocalDefault({ embed: true }),
@@ -75,7 +73,6 @@ async function startServer() {
   }); 
   await apolloServer.start(); 
   
-  // UPDATE CORS TO ALLOW ACCESS FROM ANYWHERE FOR PLAYGROUND
   app.use(cors({ 
     origin: '*', 
     credentials: true 
