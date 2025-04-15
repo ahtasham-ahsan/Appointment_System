@@ -19,6 +19,14 @@ const __dirname = path.dirname(__filename);
 const pubsub = createPubSub();
 const APPOINTMENTS_UPDATED = 'APPOINTMENTS_UPDATED';
 
+const convertStringToObjectId = (user) => {
+  let userId = "";
+  Object.keys(user).forEach(key => {
+    if (user[key]) userId += user[key];
+  });
+  return userId;
+}
+
 const getFormattedAppointments = async (userEmail) => {
   const user = await User.findOne({ email: userEmail });
   const timezone = user?.timezone || "UTC";
@@ -44,18 +52,18 @@ const getFormattedAppointments = async (userEmail) => {
 };
 
 const checkAuth = (user) => {
-
-  if (!user) throw new Error("Not authenticated");
+  console.log("ChechAuth ", user)
+  if (!user || Object.entries(user).length === 0) throw new Error("Not authenticated");
 };
 
 const resolvers = {
   Query: {
-    getAppointments: async (_, { userEmail }, { user }) => {
+    getAppointments: async (_, { userEmail }, user) => {
       //const userFromDb = await User.findById(user)
       checkAuth(user);
       return await getFormattedAppointments(userEmail);
     },
-    getAppointment: async (_, { id, userEmail }, { user }) => {
+    getAppointment: async (_, { id, userEmail }, user) => {
       checkAuth(user);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(userEmail)) {
@@ -70,8 +78,10 @@ const resolvers = {
   },
 
   Mutation: {
-    createAppointment: async (_, { title, description, date, time, participants, file }, { user }) => {
-      checkAuth(user);
+    createAppointment: async (_, { title, description, date, time, participants, file }, user) => {
+      let contextUserId = convertStringToObjectId(user)
+      console.log("userFromContext", contextUserId);
+      checkAuth(contextUserId);
 
       let attachment = null;
       let contentPreview = null;
@@ -125,9 +135,12 @@ const resolvers = {
       return { ...saved.toObject(), id: saved._id.toString() };
     },
 
-    updateAppointment: async (_, { id, ...updates }, { user }) => {
-      checkAuth(user);
-      const user1 = await User.findById(user);
+    updateAppointment: async (_, { id, ...updates }, user) => {
+      let contextUserId = convertStringToObjectId(user)
+      console.log("Update User", contextUserId);
+      checkAuth(contextUserId);
+
+      const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
@@ -148,9 +161,11 @@ const resolvers = {
       return appointment;
     },
 
-    rescheduleAppointment: async (_, { id, date, time }, { user }) => {
-      checkAuth(user);
-      const user1 = await User.findById(user);
+    rescheduleAppointment: async (_, { id, date, time }, user) => {
+      let contextUserId = convertStringToObjectId(user);
+      console.log("Reschedule User", contextUserId);
+      checkAuth(contextUserId);
+      const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
@@ -178,9 +193,11 @@ const resolvers = {
       return appointment;
     },
 
-    cancelAppointment: async (_, { id }, { user }) => {
-      checkAuth(user);
-      const user1 = await User.findById(user);
+    cancelAppointment: async (_, { id }, user) => {
+      let contextUserId = convertStringToObjectId(user);
+      console.log("Cancel User", contextUserId);
+      checkAuth(contextUserId);
+      const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
@@ -201,9 +218,11 @@ const resolvers = {
       return appointment;
     },
 
-    deleteAppointment: async (_, { id }, { user }) => {
-      checkAuth(user);
-      const user1 = await User.findById(user)
+    deleteAppointment: async (_, { id }, user) => {
+      let contextUserId = convertStringToObjectId(user);
+      console.log("Delete User", contextUserId);
+      checkAuth(contextUserId);
+      const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
@@ -238,7 +257,7 @@ const resolvers = {
       await newUser.save();
 
       const token = jwt.sign(
-        { userId: newUser.id, email: newUser.email },
+        { userId: newUser.id.toString(), email: newUser.email },
         SECRET_KEY,
         { expiresIn: '1h' }
       );
@@ -249,7 +268,7 @@ const resolvers = {
     },
 
 
-    updateUserTimezone: async (_, { id, timezone }, { user }) => {
+    updateUserTimezone: async (_, { id, timezone }, user) => {
       checkAuth(user);
       const updated = await User.findByIdAndUpdate(id, { timezone }, { new: true });
       return updated;
