@@ -71,7 +71,7 @@ const resolvers = {
       }
       return (await getFormattedAppointments(userEmail)).find(app => app.id === id);
     },
-    getUser: async (_, __, user ) => {
+    getUser: async (_, __, user) => {
       let contextUserId = convertStringToObjectId(user)
       checkAuth(contextUserId);
       return await User.findById(contextUserId);
@@ -260,7 +260,7 @@ const resolvers = {
       const token = jwt.sign(
         { userId: newUser.id.toString(), email: newUser.email },
         SECRET_KEY,
-        { expiresIn: '1h' }
+        { expiresIn: '1h' } 
       );
       return {
         user: newUser,
