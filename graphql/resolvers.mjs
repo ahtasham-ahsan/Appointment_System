@@ -10,6 +10,49 @@ import { fileURLToPath } from 'url';
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
+
+const emailSchema = z.string().email("Invalid email format");
+
+const dateSchema = z.string().refine((val) => !isNaN(Date.parse(val)), {
+  message: "Invalid date format",
+});
+
+const timeSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)");
+
+const appointmentSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters long"),
+  description: z.string().optional(),
+  date: dateSchema,
+  time: timeSchema,
+  participants: z.array(emailSchema).min(1, "At least one participant required"),
+  file: z.string().optional(),
+});
+
+const updateAppointmentSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters long").optional(),
+  description: z.string().optional(),
+  date: dateSchema.optional(),
+  time: timeSchema.optional(),
+  participants: z.array(emailSchema).min(1, "At least one participant required").optional(),
+  status: z.enum(['Scheduled', 'Rescheduled', 'Canceled']).optional(),
+  attachment: z.any().optional(),
+});
+
+const rescheduleSchema = z.object({
+  date: dateSchema,
+  time: timeSchema
+});
+
+const userSchema = z.object({
+  name: z.string().min(3, "Name must be at least 3 characters"),
+  email: emailSchema,
+  timezone: z.string().optional(),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
 
 const SECRET_KEY = process.env.JWT_SECRET_KEY || 'secret_Key';
 
@@ -59,7 +102,6 @@ const checkAuth = (user) => {
 const resolvers = {
   Query: {
     getAppointments: async (_, { userEmail }, user) => {
-      //const userFromDb = await User.findById(user)
       checkAuth(user);
       return await getFormattedAppointments(userEmail);
     },
@@ -83,6 +125,12 @@ const resolvers = {
       let contextUserId = convertStringToObjectId(user)
       console.log("userFromContext", contextUserId);
       checkAuth(contextUserId);
+      let args = { title, description, date, time, participants, file }
+      const validatedData = appointmentSchema.safeParse(args);
+      if (!validatedData.success) {
+        throw new Error(validatedData.error.issues.map((e) => e.message).join(", "));
+      }
+
 
       let attachment = null;
       let contentPreview = null;
@@ -141,6 +189,12 @@ const resolvers = {
       console.log("Update User", contextUserId);
       checkAuth(contextUserId);
 
+      const validation = updateAppointmentSchema.safeParse(updates);
+      if (!validation.success) {
+        throw new Error(validation.error.issues.map(e => e.message).join(", "));
+      }
+
+
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
@@ -166,6 +220,10 @@ const resolvers = {
       let contextUserId = convertStringToObjectId(user);
       console.log("Reschedule User", contextUserId);
       checkAuth(contextUserId);
+      const validated = rescheduleSchema.safeParse({ date, time });
+      if (!validated.success) {
+        throw new Error(validated.error.issues.map(e => e.message).join(", "));
+      }
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(user1.email)) {
@@ -243,6 +301,11 @@ const resolvers = {
     },
 
     createUser: async (_, { name, email, timezone, password }) => {
+      const validated = userSchema.safeParse({ name, email, timezone, password });
+      if (!validated.success) {
+        throw new Error(validated.error.issues.map((e) => e.message).join(", "));
+      }
+
       const existingUser = await User.findOne({ email });
       if (existingUser) throw new Error("User already exists.");
 
@@ -260,7 +323,7 @@ const resolvers = {
       const token = jwt.sign(
         { userId: newUser.id.toString(), email: newUser.email },
         SECRET_KEY,
-        { expiresIn: '1h' } 
+        { expiresIn: '7d' }
       );
       return {
         user: newUser,
