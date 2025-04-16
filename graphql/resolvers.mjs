@@ -71,9 +71,10 @@ const resolvers = {
       }
       return (await getFormattedAppointments(userEmail)).find(app => app.id === id);
     },
-    getUser: async (_, __, { user }) => {
-      checkAuth(user);
-      return await User.findById(user.id);
+    getUser: async (_, __, user ) => {
+      let contextUserId = convertStringToObjectId(user)
+      checkAuth(contextUserId);
+      return await User.findById(contextUserId);
     }
   },
 
