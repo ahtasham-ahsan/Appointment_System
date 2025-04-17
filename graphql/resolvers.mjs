@@ -71,7 +71,7 @@ const convertStringToObjectId = (user) => {
 }
 
 const formatDate = (date) => {
-  return new Date(date).toISOString().split('T')[0]; // returns YYYY-MM-DD
+  return new Date(date).toISOString().split('T')[0]; 
 };
 
 const getFormattedAppointments = async (userEmail) => {
