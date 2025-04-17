@@ -180,7 +180,10 @@ const resolvers = {
 
         attachment = { url: secure_url, filename: file };
       }
-
+      const newDateTime = new Date(`${date}T${time}`);
+      if (newDateTime < new Date()) {
+        throw new Error("Cannot create appointment to the past");
+      }
       const newAppointment = new Appointment({
         title,
         description,
@@ -227,6 +230,11 @@ const resolvers = {
 
       if (appointment.owner !== contextUserId) {
         throw new Error("You are not authorized to make changes to this appointment");
+      }
+      const {date, time, ...rest} = updates;
+      const newDateTime = new Date(`${date}T${time}`);
+      if (newDateTime < new Date()) {
+        throw new Error("Cannot reschedule to the past");
       }
 
       Object.assign(appointment, updates);
