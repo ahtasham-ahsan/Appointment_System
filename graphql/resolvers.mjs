@@ -14,13 +14,16 @@ import { z } from 'zod';
 
 const emailSchema = z.string().email("Invalid email format");
 
-const dateSchema = z.string().refine((val) => !isNaN(Date.parse(val)), {
-  message: "Invalid date format",
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const dateSchema = z.string().refine((val) => dateRegex.test(val), {
+  message: "Date must be in YYYY-MM-DD format",
 });
+
 
 const timeSchema = z
   .string()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)");
+
 
 const appointmentSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long"),
@@ -45,11 +48,20 @@ const rescheduleSchema = z.object({
   date: dateSchema,
   time: timeSchema
 });
-
+const isValidTimezone = (tz) => {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
 const userSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   email: emailSchema,
-  timezone: z.string().optional(),
+  timezone: z.string().refine(isValidTimezone, {
+    message: "Invalid timezone format"
+  }),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -229,7 +241,7 @@ const resolvers = {
         });
       }
 
-      return {...appointment.toObject(), id: appointment._id.toString(), date: formatDate(appointment.date)};
+      return { ...appointment.toObject(), id: appointment._id.toString(), date: formatDate(appointment.date) };
     },
 
     rescheduleAppointment: async (_, { id, date, time }, user) => {
@@ -271,7 +283,7 @@ const resolvers = {
       }
 
       // return appointment;
-      return {...appointment.toObject(), id: appointment._id.toString(), date: formatDate(appointment.date)};
+      return { ...appointment.toObject(), id: appointment._id.toString(), date: formatDate(appointment.date) };
     },
 
     cancelAppointment: async (_, { id }, user) => {
@@ -302,7 +314,7 @@ const resolvers = {
       }
 
       // return appointment;
-      return {...appointment.toObject(), id: appointment._id.toString(), date: formatDate(appointment.date)};
+      return { ...appointment.toObject(), id: appointment._id.toString(), date: formatDate(appointment.date) };
 
     },
 
