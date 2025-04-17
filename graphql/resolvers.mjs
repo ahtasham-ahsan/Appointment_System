@@ -111,7 +111,6 @@ const getFormattedAppointments = async (userEmail) => {
 };
 
 const checkAuth = (user) => {
-  console.log("ChechAuth ", user)
   if (!user || Object.entries(user).length === 0) throw new Error("Not authenticated");
 };
 
@@ -139,7 +138,6 @@ const resolvers = {
   Mutation: {
     createAppointment: async (_, { title, description, date, time, participants, file }, user) => {
       let contextUserId = convertStringToObjectId(user)
-      console.log("userFromContext", contextUserId);
       checkAuth(contextUserId);
       let args = { title, description, date, time, participants, file }
       const validatedData = appointmentSchema.safeParse(args);
@@ -147,12 +145,9 @@ const resolvers = {
         throw new Error(validatedData.error.issues.map((e) => e.message).join(", "));
       }
       const user1 = await User.findById(contextUserId);
-      console.log("User1 from Create Appointments", user1);
       if (!participants.includes(user1.email)) {
         participants = [...participants, user1.email]
       }
-      console.log("Participants from Create Appointments", participants);
-
 
       let attachment = null;
       let contentPreview = null;
@@ -212,7 +207,6 @@ const resolvers = {
 
     updateAppointment: async (_, { id, ...updates }, user) => {
       let contextUserId = convertStringToObjectId(user)
-      console.log("Update User", contextUserId);
       checkAuth(contextUserId);
 
       const validation = updateAppointmentSchema.safeParse(updates);
@@ -254,7 +248,6 @@ const resolvers = {
 
     rescheduleAppointment: async (_, { id, date, time }, user) => {
       let contextUserId = convertStringToObjectId(user);
-      console.log("Reschedule User", contextUserId);
       checkAuth(contextUserId);
       const validated = rescheduleSchema.safeParse({ date, time });
       if (!validated.success) {
@@ -296,7 +289,6 @@ const resolvers = {
 
     cancelAppointment: async (_, { id }, user) => {
       let contextUserId = convertStringToObjectId(user);
-      console.log("Cancel User", contextUserId);
       checkAuth(contextUserId);
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
@@ -394,9 +386,7 @@ const resolvers = {
   Subscription: {
     appointmentsUpdated: {
       subscribe: async (_, { userEmail }, context) => {
-        console.log("context", context)
-        const userEmailFromContext = context.user.email
-
+        const userEmailFromContext = context.user.email;
         if (!context || userEmailFromContext !== userEmail) throw new Error("Unauthorized");
         return pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`);
       },
