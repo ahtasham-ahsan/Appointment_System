@@ -70,6 +70,13 @@ const convertStringToObjectId = (user) => {
   return userId;
 }
 
+const ownerEmail = async (ownerID) => {
+  console.log("Owner ID coming from function ", ownerID)
+  let owner = await User.findById(ownerID);
+  console.log("Owner coming from function owner email ", owner.email)
+  return owner.email;
+}
+
 const getFormattedAppointments = async (userEmail) => {
   const user = await User.findOne({ email: userEmail });
   const timezone = user?.timezone || "UTC";
@@ -130,6 +137,12 @@ const resolvers = {
       if (!validatedData.success) {
         throw new Error(validatedData.error.issues.map((e) => e.message).join(", "));
       }
+      const user1 = await User.findById(contextUserId);
+      console.log("User1 from Create Appointments", user1);
+      if (!participants.includes(user1.email)) {
+        participants = [...participants, user1.email]
+      }
+      console.log("Participants from Create Appointments", participants);
 
 
       let attachment = null;
@@ -167,7 +180,8 @@ const resolvers = {
         participants,
         status: 'Scheduled',
         attachment,
-        contentPreview
+        contentPreview,
+        owner: contextUserId
       });
 
       const saved = await newAppointment.save();
@@ -197,8 +211,19 @@ const resolvers = {
 
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
+      console.log("Updates ccoming from updaes", updates)
+      let { participants, ...rest } = updates;
+      console.log("Updated Participants", participants);
+      // if(!appointment.participants.includes()){
+      //   participants = [...participants, user1.email]
+      // }
+      console.log("Participants from Update Appointments", appointment.participants);
       if (!appointment || !appointment.participants.includes(user1.email)) {
         throw new Error("Unauthorized");
+      }
+
+      if (appointment.owner !== contextUserId) {
+        throw new Error("You are not authorized to make changes to this appointment");
       }
 
       Object.assign(appointment, updates);
