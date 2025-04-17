@@ -52,6 +52,11 @@ async function startServer() {
   const apolloServer = new ApolloServer({
     schema,
     introspection: true,
+    formatError: (formattedError) => {
+      return {
+        message: formattedError.message,
+      };
+    },
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       process.env.NODE_ENV === 'production'
