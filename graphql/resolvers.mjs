@@ -70,10 +70,9 @@ const convertStringToObjectId = (user) => {
   return userId;
 }
 
-const ownerEmail = async (ownerID) => {
-  let owner = await User.findById(ownerID);
-  return owner.email;
-}
+const formatDate = (date) => {
+  return new Date(date).toISOString().split('T')[0]; // returns YYYY-MM-DD
+};
 
 const getFormattedAppointments = async (userEmail) => {
   const user = await User.findOne({ email: userEmail });
@@ -193,7 +192,7 @@ const resolvers = {
         });
       }
 
-      return { ...saved.toObject(), id: saved._id.toString() };
+      return { ...saved.toObject(), id: saved._id.toString(), date: formatDate(saved.date) };
     },
 
     updateAppointment: async (_, { id, ...updates }, user) => {
@@ -209,13 +208,9 @@ const resolvers = {
 
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
-      let { participants, ...rest } = updates;
-      if (!participants.includes(ownerEmail(appointment.owner))) {
-        participants = [...participants, user1.email]
-      }
-      appointment.participants = participants;
-      if (!appointment || !appointment.participants.includes(user1.email)) {
-        throw new Error("Unauthorized");
+
+      if (!appointment) {
+        throw new Error("No Appointment Found");
       }
 
       if (appointment.owner !== contextUserId) {
@@ -234,7 +229,7 @@ const resolvers = {
         });
       }
 
-      return appointment;
+      return {...appointment.toObject(), id: appointment._id.toString(), date: formatDate(appointment.date)};
     },
 
     rescheduleAppointment: async (_, { id, date, time }, user) => {
@@ -247,8 +242,13 @@ const resolvers = {
       }
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
-      if (!appointment || !appointment.participants.includes(user1.email)) {
-        throw new Error("Unauthorized");
+
+      if (appointment.owner !== contextUserId) {
+        throw new Error("You are not authorized to make changes to this appointment");
+      }
+
+      if (!appointment) {
+        throw new Error("No Appointment Found");
       }
 
       const newDateTime = new Date(`${date}T${time}`);
@@ -270,7 +270,8 @@ const resolvers = {
         });
       }
 
-      return appointment;
+      // return appointment;
+      return {...appointment.toObject(), id: appointment._id.toString(), date: formatDate(appointment.date)};
     },
 
     cancelAppointment: async (_, { id }, user) => {
@@ -279,8 +280,13 @@ const resolvers = {
       checkAuth(contextUserId);
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
-      if (!appointment || !appointment.participants.includes(user1.email)) {
-        throw new Error("Unauthorized");
+      // if (!appointment || !appointment.participants.includes(user1.email)) {
+      if (!appointment) {
+        throw new Error("No Appointment Found");
+      }
+
+      if (appointment.owner !== contextUserId) {
+        throw new Error("You are not authorized to make changes to this appointment");
       }
 
       appointment.status = 'Canceled';
@@ -295,7 +301,9 @@ const resolvers = {
         });
       }
 
-      return appointment;
+      // return appointment;
+      return {...appointment.toObject(), id: appointment._id.toString(), date: formatDate(appointment.date)};
+
     },
 
     deleteAppointment: async (_, { id }, user) => {
@@ -304,8 +312,11 @@ const resolvers = {
       checkAuth(contextUserId);
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
-      if (!appointment || !appointment.participants.includes(user1.email)) {
-        throw new Error("Unauthorized");
+      if (!appointment) {
+        throw new Error("No Appointment Found");
+      }
+      if (appointment.owner !== contextUserId) {
+        throw new Error("You are not authorized to make changes to this appointment");
       }
 
       await Appointment.findByIdAndDelete(id);

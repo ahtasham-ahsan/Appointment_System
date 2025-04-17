@@ -25,6 +25,7 @@ const typeDefs = gql`
     status: String!
     attachment: Attachment
     contentPreview: String
+    owner: String
   }
 
   type AuthPayload {
