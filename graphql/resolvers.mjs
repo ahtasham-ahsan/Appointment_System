@@ -83,7 +83,7 @@ const convertStringToObjectId = (user) => {
 }
 
 const formatDate = (date) => {
-  return new Date(date).toISOString().split('T')[0]; 
+  return new Date(date).toISOString().split('T')[0];
 };
 
 const getFormattedAppointments = async (userEmail) => {
@@ -225,7 +225,12 @@ const resolvers = {
       if (appointment.owner !== contextUserId) {
         throw new Error("You are not authorized to make changes to this appointment");
       }
-      const {date, time, ...rest} = updates;
+      let ownerObj = await User.findById(appointment.owner);
+      let ownerEmail = ownerObj.email;
+      if (!updates.participants.includes(ownerEmail)) {
+        updates.participants = [...updates.participants, ownerEmail];
+      }
+      const { date, time, ...rest } = updates;
       const newDateTime = new Date(`${date}T${time}`);
       if (newDateTime < new Date()) {
         throw new Error("Cannot reschedule to the past");
@@ -320,7 +325,6 @@ const resolvers = {
 
     deleteAppointment: async (_, { id }, user) => {
       let contextUserId = convertStringToObjectId(user);
-      console.log("Delete User", contextUserId);
       checkAuth(contextUserId);
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
