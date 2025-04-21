@@ -74,7 +74,7 @@ const typeDefs = gql`
   }
 
   type Subscription {
-    appointmentsUpdated(userEmail: String!): [Appointment!]!
+    getAppointments(userEmail: String!): [Appointment!]!
   }
 `;
 

@@ -120,17 +120,17 @@ const checkAuth = (user) => {
 
 const resolvers = {
   Query: {
-    getAppointments: async (_, { userEmail }, user) => {
-      checkAuth(user);
-      const formattedAppointments = await getFormattedAppointments(userEmail);
+    // getAppointments: async (_, { userEmail }, user) => {
+    //   checkAuth(user);
+    //   const formattedAppointments = await getFormattedAppointments(userEmail);
 
 
-      pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`);
-      pubsub.publish(`${APPOINTMENTS_UPDATED}_${userEmail}`, {
-        appointmentsUpdated: formattedAppointments
-      });
-      return formattedAppointments;
-    },
+    //   pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`);
+    //   pubsub.publish(`${APPOINTMENTS_UPDATED}_${userEmail}`, {
+    //     appointmentsUpdated: formattedAppointments
+    //   });
+    //   return formattedAppointments;
+    // },
     getAppointment: async (_, { id, userEmail }, user) => {
       checkAuth(user);
       const appointment = await Appointment.findById(id);
@@ -400,7 +400,7 @@ const resolvers = {
   },
 
   Subscription: {
-    appointmentsUpdated: {
+    getAppointments: {
       subscribe: async (_, { userEmail }, context) => {
         console.log(userEmail);
         const userEmailFromContext = context.user.email;
