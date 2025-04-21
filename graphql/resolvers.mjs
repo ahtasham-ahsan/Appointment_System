@@ -124,6 +124,8 @@ const resolvers = {
       checkAuth(user);
       const formattedAppointments = await getFormattedAppointments(userEmail);
 
+
+      pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`);
       pubsub.publish(`${APPOINTMENTS_UPDATED}_${userEmail}`, {
         appointmentsUpdated: formattedAppointments
       });
