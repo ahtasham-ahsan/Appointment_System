@@ -95,7 +95,11 @@ const getFormattedAppointments = async (userEmail) => {
     const plain = appointment.toObject();
     const dateStr = moment(plain.date).format("YYYY-MM-DD");
     const combined = `${dateStr}T${plain.time}`;
-    const momentObj = moment.utc(combined, "YYYY-MM-DDTHH:mm");
+    // const momentObj = moment.utc(combined, "YYYY-MM-DDTHH:mm");
+    const momentObj = moment.utc(plain.date);
+    // console.log("dateStr", plain.date);
+    // console.log("combined", combined);
+    // console.log("momentObj", momentObj);
 
     if (!momentObj.isValid()) {
       return { ...plain, id: plain._id.toString(), date: "Invalid", time: "Invalid" };
@@ -118,7 +122,12 @@ const resolvers = {
   Query: {
     getAppointments: async (_, { userEmail }, user) => {
       checkAuth(user);
-      return await getFormattedAppointments(userEmail);
+      const formattedAppointments = await getFormattedAppointments(userEmail);
+
+      pubsub.publish(`${APPOINTMENTS_UPDATED}_${userEmail}`, {
+        appointmentsUpdated: formattedAppointments
+      });
+      return formattedAppointments;
     },
     getAppointment: async (_, { id, userEmail }, user) => {
       checkAuth(user);
@@ -175,14 +184,15 @@ const resolvers = {
 
         attachment = { url: secure_url, filename: file };
       }
-      const newDateTime = new Date(`${date}T${time}`);
+      // const newDateTime = new Date(`${date}T${time}`);
+      const newDateTime = moment.tz(`${date}T${time}`, 'YYYY-MM-DDTHH:mm', user1.timezone).utc();
       if (newDateTime < new Date()) {
         throw new Error("Cannot create appointment to the past");
       }
       const newAppointment = new Appointment({
         title,
         description,
-        date,
+        date: newDateTime,
         time,
         participants,
         status: 'Scheduled',
@@ -390,6 +400,7 @@ const resolvers = {
   Subscription: {
     appointmentsUpdated: {
       subscribe: async (_, { userEmail }, context) => {
+        console.log(userEmail);
         const userEmailFromContext = context.user.email;
         if (!context || userEmailFromContext !== userEmail) throw new Error("Unauthorized");
         return pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`);
