@@ -94,7 +94,7 @@ const getFormattedAppointments = async (userEmail) => {
   return appointments.map((appointment) => {
     const plain = appointment.toObject();
     const dateStr = moment(plain.date).format("YYYY-MM-DD");
-    const combined = `${dateStr}T${plain.time}`;
+    // const combined = `${dateStr}T${plain.time}`;
     // const momentObj = moment.utc(combined, "YYYY-MM-DDTHH:mm");
     const momentObj = moment.utc(plain.date);
     // console.log("dateStr", plain.date);
