@@ -243,12 +243,14 @@ const resolvers = {
         updates.participants = [...updates.participants, ownerEmail];
       }
       const { date, time, ...rest } = updates;
-      const newDateTime = new Date(`${date}T${time}`);
+      // const newDateTime = new Date(`${date}T${time}`);
+      const newDateTime = moment.tz(`${date}T${time}`, 'YYYY-MM-DDTHH:mm', user1.timezone).utc();
+
       if (newDateTime < new Date()) {
         throw new Error("Cannot reschedule to the past");
       }
 
-      Object.assign(appointment, updates);
+      Object.assign(appointment, { date: newDateTime, ...updates });
       await appointment.save();
 
       await sendEmailNotification(appointment.participants, "Appointment Updated", `Appointment "${appointment.title}" updated.`);
@@ -281,12 +283,14 @@ const resolvers = {
         throw new Error("No Appointment Found");
       }
 
-      const newDateTime = new Date(`${date}T${time}`);
+      // const newDateTime = new Date(`${date}T${time}`);
+      const newDateTime = moment.tz(`${date}T${time}`, 'YYYY-MM-DDTHH:mm', user1.timezone).utc();
+
       if (newDateTime < new Date()) {
         throw new Error("Cannot reschedule to the past");
       }
 
-      appointment.date = date;
+      appointment.date = newDateTime;
       appointment.time = time;
       appointment.status = 'Rescheduled';
       await appointment.save();
