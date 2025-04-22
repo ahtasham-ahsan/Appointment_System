@@ -10,61 +10,15 @@ import { fileURLToPath } from 'url';
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { z } from 'zod';
 
-const emailSchema = z.string().email("Invalid email format");
-
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-const dateSchema = z.string().refine((val) => dateRegex.test(val), {
-  message: "Date must be in YYYY-MM-DD format",
-});
-
-
-const timeSchema = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)");
-
-
-const appointmentSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters long"),
-  description: z.string().optional(),
-  date: dateSchema,
-  time: timeSchema,
-  participants: z.array(emailSchema).min(1, "At least one participant required"),
-  file: z.string().optional(),
-});
-
-const updateAppointmentSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters long").optional(),
-  description: z.string().optional(),
-  date: dateSchema.optional(),
-  time: timeSchema.optional(),
-  participants: z.array(emailSchema).min(1, "At least one participant required").optional(),
-  status: z.enum(['Scheduled', 'Rescheduled', 'Canceled']).optional(),
-  attachment: z.any().optional(),
-});
-
-const rescheduleSchema = z.object({
-  date: dateSchema,
-  time: timeSchema
-});
-const isValidTimezone = (tz) => {
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-};
-const userSchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters"),
-  email: emailSchema,
-  timezone: z.string().refine(isValidTimezone, {
-    message: "Invalid timezone format"
-  }),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
+import {
+  appointmentSchema,
+  updateAppointmentSchema,
+  rescheduleSchema,
+  userSchema,
+} from './validations/validationSchema.mjs';
+import formatDate from './helperFunctions/formateDate.mjs';
+import { convertStringToObjectId } from './helperFunctions/cvtToString.mjs';
 
 const SECRET_KEY = process.env.JWT_SECRET_KEY || 'secret_Key';
 
@@ -74,18 +28,6 @@ const __dirname = path.dirname(__filename);
 const pubsub = createPubSub();
 const APPOINTMENTS_UPDATED = 'APPOINTMENTS_UPDATED';
 
-const convertStringToObjectId = (user) => {
-  let userId = "";
-  Object.keys(user).forEach(key => {
-    if (user[key]) userId += user[key];
-  });
-  return userId;
-}
-
-const formatDate = (date) => {
-  return new Date(date).toISOString().split('T')[0];
-};
-
 const getFormattedAppointments = async (userEmail) => {
   const user = await User.findOne({ email: userEmail });
   const timezone = user?.timezone || "UTC";
@@ -93,13 +35,7 @@ const getFormattedAppointments = async (userEmail) => {
 
   return appointments.map((appointment) => {
     const plain = appointment.toObject();
-    // const dateStr = moment(plain.date).format("YYYY-MM-DD");
-    // const combined = `${dateStr}T${plain.time}`;
-    // const momentObj = moment.utc(combined, "YYYY-MM-DDTHH:mm");
     const momentObj = moment.utc(plain.date);
-    // console.log("dateStr", plain.date);
-    // console.log("combined", combined);
-    // console.log("momentObj", momentObj);
 
     if (!momentObj.isValid()) {
       return { ...plain, id: plain._id.toString(), date: "Invalid", time: "Invalid" };
@@ -186,7 +122,6 @@ const resolvers = {
       }
       // const newDateTime = new Date(`${date}T${time}`);
       const newDateTime = moment.tz(`${date}T${time}`, 'YYYY-MM-DDTHH:mm', user1.timezone).utc();
-      console.log(newDateTime);
       if (newDateTime < new Date()) {
         throw new Error("Cannot create appointment to the past");
       }
@@ -255,11 +190,6 @@ const resolvers = {
       appointment.description = updates.description || appointment.description;
       appointment.participants = updates.participants || appointment.participants;
       appointment.attachment = updates.attachment || appointment.attachment;
-
-      // updates = {date: newDateTime}
-      // Object.assign(appointment, { updates });
-      // console.log("Appointments date", appointment.date, appointment.title, appointment.time, appointment.description);
-      // appointment.date = newDateTime;
       await appointment.save();
 
       await sendEmailNotification(appointment.participants, "Appointment Updated", `Appointment "${appointment.title}" updated.`);
@@ -291,8 +221,6 @@ const resolvers = {
       if (!appointment) {
         throw new Error("No Appointment Found");
       }
-
-      // const newDateTime = new Date(`${date}T${time}`);
       const newDateTime = moment.tz(`${date}T${time}`, 'YYYY-MM-DDTHH:mm', user1.timezone).utc();
 
       if (newDateTime < new Date()) {
@@ -322,7 +250,6 @@ const resolvers = {
       checkAuth(contextUserId);
       const user1 = await User.findById(contextUserId);
       const appointment = await Appointment.findById(id);
-      // if (!appointment || !appointment.participants.includes(user1.email)) {
       if (!appointment) {
         throw new Error("No Appointment Found");
       }
