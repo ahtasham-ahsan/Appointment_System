@@ -248,8 +248,18 @@ const resolvers = {
       if (newDateTime < new Date()) {
         throw new Error("Cannot reschedule to the past");
       }
-      updates.date = newDateTime;
-      Object.assign(appointment, { updates });
+      appointment.date = newDateTime;
+      appointment.time = updates.time || appointment.time;
+      appointment.status = 'Updated';
+      appointment.title = updates.title || appointment.title;
+      appointment.description = updates.description || appointment.description;
+      appointment.participants = updates.participants || appointment.participants;
+      appointment.attachment = updates.attachment || appointment.attachment;
+
+      // updates = {date: newDateTime}
+      // Object.assign(appointment, { updates });
+      // console.log("Appointments date", appointment.date, appointment.title, appointment.time, appointment.description);
+      // appointment.date = newDateTime;
       await appointment.save();
 
       await sendEmailNotification(appointment.participants, "Appointment Updated", `Appointment "${appointment.title}" updated.`);
