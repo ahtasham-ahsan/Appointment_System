@@ -6,7 +6,7 @@ const appointmentSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   time: { type: String, required: true },
   participants: [{ type: String, required: true }],
-  status: { type: String, enum: ['Scheduled', 'Rescheduled', 'Canceled'], default: 'Scheduled' },
+  status: { type: String, enum: ['Scheduled', 'Rescheduled', 'Canceled', 'Updated'], default: 'Scheduled' },
   attachment: {
     url: String,
     filename: String,
