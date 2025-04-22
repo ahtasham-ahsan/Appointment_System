@@ -93,7 +93,7 @@ const getFormattedAppointments = async (userEmail) => {
 
   return appointments.map((appointment) => {
     const plain = appointment.toObject();
-    const dateStr = moment(plain.date).format("YYYY-MM-DD");
+    // const dateStr = moment(plain.date).format("YYYY-MM-DD");
     // const combined = `${dateStr}T${plain.time}`;
     // const momentObj = moment.utc(combined, "YYYY-MM-DDTHH:mm");
     const momentObj = moment.utc(plain.date);
@@ -186,6 +186,7 @@ const resolvers = {
       }
       // const newDateTime = new Date(`${date}T${time}`);
       const newDateTime = moment.tz(`${date}T${time}`, 'YYYY-MM-DDTHH:mm', user1.timezone).utc();
+      console.log(newDateTime);
       if (newDateTime < new Date()) {
         throw new Error("Cannot create appointment to the past");
       }
