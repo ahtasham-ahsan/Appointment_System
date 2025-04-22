@@ -48,6 +48,7 @@ const typeDefs = gql`
     ): AuthPayload!
 
     updateUserTimezone(id: ID!, timezone: String!): User!
+    loginUser(email: String!, password: String!): AuthPayload!
 
     createAppointment(
       title: String!

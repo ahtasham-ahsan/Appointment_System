@@ -88,7 +88,9 @@ async function startServer() {
     expressMiddleware(apolloServer, {
       context: async ({ req }) => {
         try {
-          const token = req.headers?.authorization.split(' ')[1]
+          const authHeader = req.headers?.authorization;
+          if (!authHeader) return null;
+          const token = authHeader.split(' ')[1];
           if (!token) return null;
           const decodedUser = jwt.verify(token, process.env.JWT_TOKEN);
           return decodedUser.userId;

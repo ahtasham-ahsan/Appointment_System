@@ -129,7 +129,8 @@ const resolvers = {
       return formattedAppointments;
     },
     getAppointment: async (_, { id, userEmail }, user) => {
-      checkAuth(user);
+      let contextUserId = convertStringToObjectId(user)
+      checkAuth(contextUserId);
       const appointment = await Appointment.findById(id);
       if (!appointment || !appointment.participants.includes(userEmail)) {
         throw new Error("Unauthorized access");
@@ -391,13 +392,43 @@ const resolvers = {
         token,
       };
     },
+    loginUser: async (_, { email, password }) => {
+      try {
+        const validateEmail = emailSchema.safeParse(email);
+        if (!validateEmail.success) {
+          throw new Error(validateEmail.error.issues.map((e) => e.message).join(", "));
+        }
+        const user = await User.findOne({ email }).select('+password');
+        if (!user) throw new Error("User not found.");
 
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) throw new Error("Invalid credentials.");
+        const token = jwt.sign(
+          { userId: user.id.toString(), email: user.email },
+          SECRET_KEY,
+          { expiresIn: '7d' }
+        );
+        return {
+          user: {
+            id: user.id.toString(),
+            name: user.name,
+            email: user.email,
+            timezone: user.timezone,
+          },
+          token,
+        };
+      } catch (error) {
+        console.log("Error in loginUser", error);
+        throw new Error("Invalid credentials.");
+      }
+    },
 
     updateUserTimezone: async (_, { id, timezone }, user) => {
       checkAuth(user);
       const updated = await User.findByIdAndUpdate(id, { timezone }, { new: true });
       return updated;
-    }
+    },
+
   },
 
   Subscription: {
@@ -408,7 +439,6 @@ const resolvers = {
           throw new Error("Unauthorized");
         }
         const currentAppointments = await getFormattedAppointments(userEmail);
-        console.log("currentAppointments ", currentAppointments);
         yield { appointmentsUpdated: currentAppointments };
 
         for await (const payload of pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`)) {
