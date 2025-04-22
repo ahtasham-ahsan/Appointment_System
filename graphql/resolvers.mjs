@@ -120,17 +120,14 @@ const checkAuth = (user) => {
 
 const resolvers = {
   Query: {
-    // getAppointments: async (_, { userEmail }, user) => {
-    //   checkAuth(user);
-    //   const formattedAppointments = await getFormattedAppointments(userEmail);
-
-
-    //   pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`);
-    //   pubsub.publish(`${APPOINTMENTS_UPDATED}_${userEmail}`, {
-    //     appointmentsUpdated: formattedAppointments
-    //   });
-    //   return formattedAppointments;
-    // },
+    getAppointments: async (_, { userEmail }, user) => {
+      checkAuth(user);
+      const formattedAppointments = await getFormattedAppointments(userEmail);
+      pubsub.publish(`${APPOINTMENTS_UPDATED}_${userEmail}`, {
+        appointmentsUpdated: formattedAppointments
+      });
+      return formattedAppointments;
+    },
     getAppointment: async (_, { id, userEmail }, user) => {
       checkAuth(user);
       const appointment = await Appointment.findById(id);
@@ -249,8 +246,8 @@ const resolvers = {
       if (newDateTime < new Date()) {
         throw new Error("Cannot reschedule to the past");
       }
-
-      Object.assign(appointment, { date: newDateTime, ...updates });
+      updates.date = newDateTime;
+      Object.assign(appointment, { updates });
       await appointment.save();
 
       await sendEmailNotification(appointment.participants, "Appointment Updated", `Appointment "${appointment.title}" updated.`);
@@ -405,11 +402,18 @@ const resolvers = {
 
   Subscription: {
     getAppointments: {
-      subscribe: async (_, { userEmail }, context) => {
-        console.log(userEmail);
-        const userEmailFromContext = context.user.email;
-        if (!context || userEmailFromContext !== userEmail) throw new Error("Unauthorized");
-        return pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`);
+      subscribe: async function* (_, { userEmail }, context) {
+        const userEmailFromContext = context.user?.email;
+        if (!context || userEmailFromContext !== userEmail) {
+          throw new Error("Unauthorized");
+        }
+        const currentAppointments = await getFormattedAppointments(userEmail);
+        console.log("currentAppointments ", currentAppointments);
+        yield { appointmentsUpdated: currentAppointments };
+
+        for await (const payload of pubsub.subscribe(`${APPOINTMENTS_UPDATED}_${userEmail}`)) {
+          yield payload;
+        }
       },
       resolve: (payload) => payload.appointmentsUpdated
     },
